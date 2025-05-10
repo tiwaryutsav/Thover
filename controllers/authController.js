@@ -46,25 +46,18 @@ exports.verifyOTP = catchAsync(async (req, res) => {
   }
 
   const existingUser = await User.findOne({
-    $or: [
-      { phoneNumber: userData.phoneNumber },
-      { email: userData.email }
-    ]
+    phoneNumber: userData.phoneNumber
   });
 
   if (existingUser) {
     return res.status(409).json({
       success: false,
-      message:
-        existingUser.email === userData.email
-          ? 'Email already registered'
-          : 'Phone number already registered'
+      message: 'Phone number already registered'
     });
   }
 
   const newUser = await User.create({
     username: userData.username,
-    email: userData.email,
     password: userData.password,
     phoneNumber: userData.phoneNumber,
     name: userData.name,
@@ -76,12 +69,10 @@ exports.verifyOTP = catchAsync(async (req, res) => {
   res.json({
     success: true,
     message: 'Registration successful',
-    userId: newUser.userId, // ✅ Return the generated userId if needed
+    userId: newUser.userId,
     token
   });
 });
-
-
 
 
 // Route to login user
@@ -123,7 +114,7 @@ exports.login = catchAsync(async (req, res) => {
 
 //Route to add post
 exports.addPost = catchAsync(async (req, res) => {
-  const { topic, description, images } = req.body;
+  const { topic, description, images, imagePath, price } = req.body;
 
   // Ensure req.user is available (from protect middleware)
   if (!req.user || !req.user._id) {
@@ -136,17 +127,27 @@ exports.addPost = catchAsync(async (req, res) => {
   const userId = req.user._id;
 
   // Validate fields
-  if (!topic || !description || !images || !Array.isArray(images) || images.length === 0) {
+  if (
+    !topic ||
+    !description ||
+    !imagePath ||
+    !images ||
+    !Array.isArray(images) ||
+    images.length === 0 ||
+    price === undefined // allow 0 but not undefined
+  ) {
     return res.status(400).json({
       success: false,
-      message: 'Title, description, and at least one image are required'
+      message: 'Topic, description, imagePath, at least one image, and price are required'
     });
   }
 
   const post = await Post.create({
     topic,
     description,
-    images, // now storing the array
+    images,
+    imagePath,
+    price,
     user: userId,
   });
 
@@ -156,6 +157,8 @@ exports.addPost = catchAsync(async (req, res) => {
     post
   });
 });
+
+
 
 //Route to get all user Details
 exports.getUserDetails = catchAsync(async (req, res) => {
@@ -190,7 +193,7 @@ exports.getUserDetails = catchAsync(async (req, res) => {
 
 // Route to add a vibe
 exports.addVibe = catchAsync(async (req, res) => {
-  const { Replies, images, rating } = req.body;
+  const { Replies, images, rating, text, imagePath } = req.body;
 
   // Ensure req.user is available
   if (!req.user || !req.user._id) {
@@ -203,10 +206,17 @@ exports.addVibe = catchAsync(async (req, res) => {
   const userId = req.user._id;
 
   // Validate fields
-  if (!Replies || !images || !Array.isArray(images) || images.length === 0) {
+  if (
+    !Replies ||
+    !images ||
+    !Array.isArray(images) ||
+    images.length === 0 ||
+    !rating ||
+    !text
+  ) {
     return res.status(400).json({
       success: false,
-      message: 'Replies and at least one image are required'
+      message: 'Replies, rating, text, and at least one image are required'
     });
   }
 
@@ -214,7 +224,9 @@ exports.addVibe = catchAsync(async (req, res) => {
     Replies,
     images,
     rating,
-    user: userId  // Match with Post schema: user instead of useruid
+    text,
+    imagePath,  // Optional
+    user: userId
   });
 
   res.status(201).json({
@@ -223,6 +235,7 @@ exports.addVibe = catchAsync(async (req, res) => {
     vibe
   });
 });
+
 
 
 
