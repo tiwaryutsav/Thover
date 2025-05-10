@@ -9,10 +9,18 @@ const postSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  images: [{  // Changed from `image` to `images`
+  images: [{
     type: String,
     required: true
   }],
+  imagePath: {  // <-- New field added
+    type: String,
+    required: false  // Set to true if it's mandatory
+  },
+  price : {
+    type : Number,
+    required : true
+  },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

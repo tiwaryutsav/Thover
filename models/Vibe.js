@@ -18,6 +18,14 @@ const vibeSchema = new mongoose.Schema({
     type: String,
     required : true,
   },
+  text:{
+    type : String,
+    required : true,
+  },
+  imagePath: {  // <-- New field added
+    type: String,
+    required: false  // Set to true if it's mandatory
+  },
   created_at: {
     type: Date,
     default: Date.now
