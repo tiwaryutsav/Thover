@@ -15,7 +15,7 @@ const userSchema = new mongoose.Schema({
 
 userSchema.post('save', async function (doc, next) {
   if (!doc.userId) {
-    const shortId = doc._id.toString().slice(-4); // last 4 chars of ObjectId
+    const shortId = doc._id.toString(); // last 4 chars of ObjectId
     doc.userId = shortId;
     await doc.save(); // Save the updated document
   }

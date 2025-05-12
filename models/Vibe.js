@@ -26,6 +26,11 @@ const vibeSchema = new mongoose.Schema({
     type: String,
     required: false  // Set to true if it's mandatory
   },
+  post: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Post', // link to Post
+    required: true,
+  },
   created_at: {
     type: Date,
     default: Date.now

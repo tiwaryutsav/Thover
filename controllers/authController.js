@@ -1,7 +1,7 @@
+const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const twilioService = require('../services/twilioService');
 const catchAsync = require('../utils/catchAsync');
-const jwt = require('jsonwebtoken');
 const Post = require('../models/Post');  // Adjust the path as needed
 const Vibe = require('../models/Vibe');
 
@@ -24,7 +24,6 @@ exports.sendOTP = catchAsync(async (req, res) => {
     message: 'OTP sent successfully'
   });
 });
-
 
 exports.verifyOTP = catchAsync(async (req, res) => {
   const { phoneNumber, otp, userData } = req.body;
@@ -74,7 +73,6 @@ exports.verifyOTP = catchAsync(async (req, res) => {
   });
 });
 
-
 // Route to login user
 exports.login = catchAsync(async (req, res) => {
   const { username, password } = req.body;
@@ -102,15 +100,15 @@ exports.login = catchAsync(async (req, res) => {
     });
   }
 
-  const token = await user.generateAuthToken(); // 🔥 Save + return token
+  const token = await user.generateAuthToken();
 
   res.json({
     success: true,
     message: 'Login successful',
-    token
+    token,
+    userId: user._id   // ✅ Returning user ID
   });
 });
-
 
 //Route to add post
 exports.addPost = catchAsync(async (req, res) => {
@@ -158,8 +156,6 @@ exports.addPost = catchAsync(async (req, res) => {
   });
 });
 
-
-
 //Route to get all user Details
 exports.getUserDetails = catchAsync(async (req, res) => {
   const { userId } = req.params;
@@ -190,33 +186,41 @@ exports.getUserDetails = catchAsync(async (req, res) => {
   });
 });
 
-
 // Route to add a vibe
 exports.addVibe = catchAsync(async (req, res) => {
-  const { Replies, images, rating, text, imagePath } = req.body;
+  const { Replies, images, rating, text, imagePath, postId } = req.body;
 
-  // Ensure req.user is available
   if (!req.user || !req.user._id) {
     return res.status(401).json({
       success: false,
-      message: 'Unauthorized: User information missing'
+      message: 'Unauthorized: User information missing',
     });
   }
 
   const userId = req.user._id;
 
-  // Validate fields
+  // Validate input
   if (
     !Replies ||
     !images ||
     !Array.isArray(images) ||
     images.length === 0 ||
     !rating ||
-    !text
+    !text ||
+    !postId
   ) {
     return res.status(400).json({
       success: false,
-      message: 'Replies, rating, text, and at least one image are required'
+      message: 'Replies, rating, text, postId, and at least one image are required',
+    });
+  }
+
+  // Optional: verify the postId exists
+  const postExists = await Post.findById(postId);
+  if (!postExists) {
+    return res.status(404).json({
+      success: false,
+      message: 'Post not found',
     });
   }
 
@@ -225,14 +229,54 @@ exports.addVibe = catchAsync(async (req, res) => {
     images,
     rating,
     text,
-    imagePath,  // Optional
-    user: userId
+    imagePath,
+    user: userId,
+    post: postId,
   });
 
   res.status(201).json({
     success: true,
-    message: 'Vibe created successfully',
-    vibe
+    message: 'Vibe created and linked to post successfully',
+    vibe,
+  });
+});
+
+
+exports.getUserid = catchAsync(async (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(400).json({
+      success: false,
+      message: 'Token is required'
+    });
+  }
+
+  // Find user by their token (assuming token is stored as a field in the User model)
+  const user = await User.findOne({ token }).select('userId'); // Only select userId field
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: 'User not found'
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    userId: user.userId // Only send back the userId
+  });
+});
+
+//Route to get all the post
+
+exports.getAllPosts = catchAsync(async (req, res) => {
+  const posts = await Post.find();
+
+  res.status(200).json({
+    success: true,
+    count: posts.length,
+    posts,
   });
 });
 
@@ -243,7 +287,7 @@ exports.addVibe = catchAsync(async (req, res) => {
 
 // Route to update profile
 exports.updateUserProfile = catchAsync(async (req, res) => {
-  const { Bio, phoneNumber, email, name } = req.body;
+  const { Bio, phoneNumber, name } = req.body;
 
   // 1. Ensure the user is authenticated
   if (!req.user || !req.user._id) {
@@ -265,7 +309,6 @@ exports.updateUserProfile = catchAsync(async (req, res) => {
   // 3. Apply updates (excluding username)
   if (Bio) user.Bio = Bio;
   if (phoneNumber) user.phoneNumber = phoneNumber;
-  if (email) user.email = email;
   if (name) user.name = name;
 
   await user.save();
@@ -278,7 +321,6 @@ exports.updateUserProfile = catchAsync(async (req, res) => {
       _id: user._id,
       username: user.username, // included for client display, but not updated
       name: user.name,
-      email: user.email,
       phoneNumber: user.phoneNumber,
       Bio: user.Bio
     }
@@ -402,5 +444,16 @@ exports.updatePassword = catchAsync(async (req, res) => {
 
 
 
+//Route to get all the post
 
+exports.getAllPosts = catchAsync(async (req, res) => {
+  const posts = await Post.find();
 
+  res.status(200).json({
+    success: true,
+    count: posts.length,
+    posts,
+  });
+});
+
+//Route to get post from user

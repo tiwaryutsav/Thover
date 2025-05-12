@@ -17,6 +17,7 @@ router.post('/vibes', protect, authController.addVibe);
 router.put('/update-profile', protect, authController.updateUserProfile);
 router.put('/update-username', protect, authController.updateUsername);
 router.put('/update-password',protect, authController.updatePassword);
-
+router.get('/user-token', authController.getUserid);
+router.get('/allPosts',authController.getAllPosts);
 
 module.exports = router;
