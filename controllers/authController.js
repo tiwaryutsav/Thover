@@ -268,21 +268,7 @@ exports.getUserid = catchAsync(async (req, res) => {
   });
 });
 
-//Route to get all the post
-
-exports.getAllPosts = catchAsync(async (req, res) => {
-  const posts = await Post.find();
-
-  res.status(200).json({
-    success: true,
-    count: posts.length,
-    posts,
-  });
-});
-
-
-
-
+//Route to get all the vibes through postid
 
 
 // Route to update profile
@@ -456,4 +442,107 @@ exports.getAllPosts = catchAsync(async (req, res) => {
   });
 });
 
-//Route to get post from user
+//Route to get vives through postid
+exports.getVibesByPostId = catchAsync(async (req, res) => {
+  const { postId } = req.params;
+
+  // Optional: Validate post existence
+  const postExists = await Post.findById(postId);
+  if (!postExists) {
+    return res.status(404).json({
+      success: false,
+      message: 'Post not found',
+    });
+  }
+
+  const vibes = await Vibe.find({ post: postId }).populate('user', 'name email');
+
+  res.status(200).json({
+    success: true,
+    count: vibes.length,
+    vibes,
+  });
+});
+
+//Add route to add Profile pic
+// controllers/userController.js
+exports.addProfilePic = catchAsync(async (req, res) => {
+  const { imageUrl, imagePath } = req.body; // ✅ properly extract both
+
+  if (!req.user || !req.user._id) {
+    return res.status(401).json({
+      success: false,
+      message: 'Unauthorized: User information missing',
+    });
+  }
+
+  if (!imageUrl && !imagePath) {
+    return res.status(400).json({
+      success: false,
+      message: 'Either imageUrl or imagePath is required',
+    });
+  }
+
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: 'User not found',
+    });
+  }
+
+  // Set the profile picture (only if not already set)
+  if (!user.profile_pic) {
+    user.profile_pic = imageUrl || imagePath; // ✅ prioritize imageUrl if both
+    await user.save();
+
+    return res.status(201).json({
+      success: true,
+      message: 'Profile picture added successfully',
+      profile_pic: user.profile_pic,
+    });
+  } else {
+    return res.status(400).json({
+      success: false,
+      message: 'Profile picture already exists. Use update route if needed.',
+    });
+  }
+});
+
+//update profile pic
+exports.updateProfilePic = catchAsync(async (req, res) => {
+  const { imageUrl, imagePath } = req.body;
+
+  if (!req.user || !req.user._id) {
+    return res.status(401).json({
+      success: false,
+      message: 'Unauthorized: User information missing',
+    });
+  }
+
+  if (!imageUrl && !imagePath) {
+    return res.status(400).json({
+      success: false,
+      message: 'Either imageUrl or imagePath is required',
+    });
+  }
+
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: 'User not found',
+    });
+  }
+
+  user.profile_pic = imageUrl || imagePath; // ✅ overwrite existing
+  await user.save();
+
+  return res.status(200).json({
+    success: true,
+    message: 'Profile picture updated successfully',
+    profile_pic: user.profile_pic,
+  });
+});
+
+

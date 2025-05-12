@@ -10,6 +10,7 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   token: { type: String },
   userId: { type: String, unique: true, trim: true }, // 👈 Add this
+  profile_pic : {type : String},
   createdAt: { type: Date, default: Date.now }
 });
 
