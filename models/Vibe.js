@@ -1,13 +1,8 @@
 const mongoose = require('mongoose');
 
 const vibeSchema = new mongoose.Schema({
-  Replies: {
-    type: String,
-    required: true
-  },
   images: [{  // Changed from `image` to `images`
     type: String,
-    required: true
   }],
   user: {
       type: mongoose.Schema.Types.ObjectId,
@@ -16,7 +11,6 @@ const vibeSchema = new mongoose.Schema({
     },
   rating: {
     type: String,
-    required : true,
   },
   text:{
     type : String,
@@ -24,7 +18,6 @@ const vibeSchema = new mongoose.Schema({
   },
   imagePath: {  // <-- New field added
     type: String,
-    required: false  // Set to true if it's mandatory
   },
   post: {
     type: mongoose.Schema.Types.ObjectId,

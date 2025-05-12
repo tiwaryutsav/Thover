@@ -188,7 +188,7 @@ exports.getUserDetails = catchAsync(async (req, res) => {
 
 // Route to add a vibe
 exports.addVibe = catchAsync(async (req, res) => {
-  const { Replies, images, rating, text, imagePath, postId } = req.body;
+  const { images, rating, text, imagePath, postId } = req.body;
 
   if (!req.user || !req.user._id) {
     return res.status(401).json({
@@ -200,18 +200,10 @@ exports.addVibe = catchAsync(async (req, res) => {
   const userId = req.user._id;
 
   // Validate input
-  if (
-    !Replies ||
-    !images ||
-    !Array.isArray(images) ||
-    images.length === 0 ||
-    !rating ||
-    !text ||
-    !postId
-  ) {
+  if (!text || !postId) {
     return res.status(400).json({
       success: false,
-      message: 'Replies, rating, text, postId, and at least one image are required',
+      message: 'Text and postId are required',
     });
   }
 
@@ -225,7 +217,6 @@ exports.addVibe = catchAsync(async (req, res) => {
   }
 
   const vibe = await Vibe.create({
-    Replies,
     images,
     rating,
     text,
@@ -240,6 +231,8 @@ exports.addVibe = catchAsync(async (req, res) => {
     vibe,
   });
 });
+
+
 
 
 exports.getUserid = catchAsync(async (req, res) => {
