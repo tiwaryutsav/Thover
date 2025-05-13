@@ -27,5 +27,6 @@ router.get('/post/:postId', protect,authController.getPostById);
 
 router.get('/update-location', protect, authController.getArea);
 router.post('/follow', protect, authController.followers);
+router.post('/unfollow', protect, authController.unfollow);
 
 export default router;

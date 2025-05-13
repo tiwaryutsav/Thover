@@ -661,3 +661,58 @@ export const followers = catchAsync(async (req, res) => {
     message: `You are now following ${targetUser.username}`,
   });
 });
+
+//Route to unfollow
+export const unfollow = catchAsync(async (req, res) => {
+  const { id } = req.body;
+  const currentUserId = req.user._id;  // Assuming current user is set from authentication middleware
+  
+  // Check if the id is provided
+  if (!id) {
+    return res.status(404).json({
+      success: false,
+      message: 'User ID not found',
+    });
+  }
+
+  // Find the target user and the current user
+  const targetUser = await User.findById(id);
+  const currentUser = await User.findById(currentUserId);
+
+  // Check if the target user exists
+  if (!targetUser) {
+    return res.status(404).json({
+      success: false,
+      message: 'Target user not found',
+    });
+  }
+
+  // Prevent the user from unfollowing themselves
+  if (currentUserId.toString() === id.toString()) {
+    return res.status(400).json({
+      success: false,
+      message: "You can't unfollow yourself.",
+    });
+  }
+
+  // Check if the user is following the target user
+  if (!targetUser.followers.includes(currentUserId)) {
+    return res.status(400).json({
+      success: false,
+      message: 'You are not following this user.',
+    });
+  }
+
+  // Remove the current user from the target user's followers and the target user from the current user's following
+  targetUser.followers.pull(currentUserId);
+  currentUser.following.pull(id);
+
+  // Save both users
+  await targetUser.save();
+  await currentUser.save();
+
+  res.status(200).json({
+    success: true,
+    message: `You have unfollowed ${targetUser.username}`,
+  });
+});
