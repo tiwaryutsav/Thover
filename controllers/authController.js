@@ -1,13 +1,18 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const twilioService = require('../services/twilioService');
-const catchAsync = require('../utils/catchAsync');
-const Post = require('../models/Post');  // Adjust the path as needed
-const Vibe = require('../models/Vibe');
+import fetch from 'node-fetch';
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
+import { sendSMS, verifyOTP } from '../services/twilioService.js';
+import * as twilioService from '../services/twilioService.js'; // Correct the path as needed
+import catchAsync from '../utils/catchAsync.js';
+import Post from '../models/Post.js';  // Adjust the path as needed
+import Vibe from '../models/Vibe.js';
+
+
+
 
 
 // Route to send OTP using Twilio Verify API
-exports.sendOTP = catchAsync(async (req, res) => {
+export const sendOTP = catchAsync(async (req, res) => {
   const { phoneNumber } = req.body;
 
   if (!phoneNumber) {
@@ -25,7 +30,7 @@ exports.sendOTP = catchAsync(async (req, res) => {
   });
 });
 
-exports.verifyOTP = catchAsync(async (req, res) => {
+export const register = catchAsync(async (req, res) => {
   const { phoneNumber, otp, userData } = req.body;
 
   if (!phoneNumber || !otp || !userData) {
@@ -74,7 +79,7 @@ exports.verifyOTP = catchAsync(async (req, res) => {
 });
 
 // Route to login user
-exports.login = catchAsync(async (req, res) => {
+export const login = catchAsync(async (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password) {
@@ -111,14 +116,14 @@ exports.login = catchAsync(async (req, res) => {
 });
 
 //Route to add post
-exports.addPost = catchAsync(async (req, res) => {
+export const addPost = catchAsync(async (req, res) => {
   const { topic, description, images, imagePath, price } = req.body;
 
   // Ensure req.user is available (from protect middleware)
   if (!req.user || !req.user._id) {
     return res.status(401).json({
       success: false,
-      message: 'Unauthorized: User information missing'
+      message: 'Unauthorized: User information missing',
     });
   }
 
@@ -136,7 +141,7 @@ exports.addPost = catchAsync(async (req, res) => {
   ) {
     return res.status(400).json({
       success: false,
-      message: 'Topic, description, imagePath, at least one image, and price are required'
+      message: 'Topic, description, imagePath, at least one image, and price are required',
     });
   }
 
@@ -152,18 +157,18 @@ exports.addPost = catchAsync(async (req, res) => {
   res.status(201).json({
     success: true,
     message: 'Post created successfully',
-    post
+    post,
   });
 });
 
 //Route to get all user Details
-exports.getUserDetails = catchAsync(async (req, res) => {
+export const getUserDetails = catchAsync(async (req, res) => {
   const { userId } = req.params;
 
   if (!userId) {
     return res.status(400).json({
       success: false,
-      message: 'User ID is required'
+      message: 'User ID is required',
     });
   }
 
@@ -173,7 +178,7 @@ exports.getUserDetails = catchAsync(async (req, res) => {
   if (!user) {
     return res.status(404).json({
       success: false,
-      message: 'User not found'
+      message: 'User not found',
     });
   }
 
@@ -182,12 +187,13 @@ exports.getUserDetails = catchAsync(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    user
+    user,
+    posts,
   });
 });
 
 // Route to add a vibe
-exports.addVibe = catchAsync(async (req, res) => {
+export const addVibe = catchAsync(async (req, res) => {
   const { images, rating, text, imagePath, postId } = req.body;
 
   if (!req.user || !req.user._id) {
@@ -233,9 +239,7 @@ exports.addVibe = catchAsync(async (req, res) => {
 });
 
 
-
-
-exports.getUserid = catchAsync(async (req, res) => {
+export const getUserid = catchAsync(async (req, res) => {
   const { token } = req.body;
 
   if (!token) {
@@ -265,7 +269,7 @@ exports.getUserid = catchAsync(async (req, res) => {
 
 
 // Route to update profile
-exports.updateUserProfile = catchAsync(async (req, res) => {
+export const updateUserProfile = catchAsync(async (req, res) => {
   const { Bio, phoneNumber, name } = req.body;
 
   // 1. Ensure the user is authenticated
@@ -308,7 +312,7 @@ exports.updateUserProfile = catchAsync(async (req, res) => {
 
 
 //upadte username
-exports.updateUsername = catchAsync(async (req, res) => {
+export const updateUsername = catchAsync(async (req, res) => {
   const { oldUsername, newUsername } = req.body;
 
   // 1. Ensure the user is authenticated
@@ -370,7 +374,7 @@ exports.updateUsername = catchAsync(async (req, res) => {
 
 
 //Route to update password using otp
-exports.updatePassword = catchAsync(async (req, res) => {
+export const updatePassword = catchAsync(async (req, res) => {
   const { phoneNumber, otp, userData } = req.body;
 
   if (
@@ -425,7 +429,7 @@ exports.updatePassword = catchAsync(async (req, res) => {
 
 //Route to get all the post
 
-exports.getAllPosts = catchAsync(async (req, res) => {
+export const getAllPosts = catchAsync(async (req, res) => {
   const posts = await Post.find();
 
   res.status(200).json({
@@ -436,7 +440,7 @@ exports.getAllPosts = catchAsync(async (req, res) => {
 });
 
 //Route to get vives through postid
-exports.getVibesByPostId = catchAsync(async (req, res) => {
+export const getVibesByPostId = catchAsync(async (req, res) => {
   const { postId } = req.params;
 
   // Optional: Validate post existence
@@ -459,7 +463,7 @@ exports.getVibesByPostId = catchAsync(async (req, res) => {
 
 //Add route to add Profile pic
 // controllers/userController.js
-exports.addProfilePic = catchAsync(async (req, res) => {
+export const addProfilePic = catchAsync(async (req, res) => {
   const { imageUrl, imagePath } = req.body; // ✅ properly extract both
 
   if (!req.user || !req.user._id) {
@@ -503,7 +507,7 @@ exports.addProfilePic = catchAsync(async (req, res) => {
 });
 
 //update profile pic
-exports.updateProfilePic = catchAsync(async (req, res) => {
+export const updateProfilePic = catchAsync(async (req, res) => {
   const { imageUrl, imagePath } = req.body;
 
   if (!req.user || !req.user._id) {
@@ -538,4 +542,49 @@ exports.updateProfilePic = catchAsync(async (req, res) => {
   });
 });
 
+
+//Route to fetch location
+
+export const getArea = async (req, res) => {
+  const userId = req.user._id;
+
+  // Get user's IP address
+  const ip =
+    req.headers['x-forwarded-for']?.split(',')[0] ||
+    req.connection.remoteAddress;
+
+  try {
+    // Call ip-api.com to get location
+    const geoRes = await fetch(`http://ip-api.com/json/${ip}`);
+    const geoData = await geoRes.json();
+
+    if (geoData.status !== 'success') {
+      return res.status(500).json({ error: 'Failed to fetch location from IP.' });
+    }
+
+    const area = geoData.city || geoData.regionName || geoData.country;
+    const latitude = geoData.lat;
+    const longitude = geoData.lon;
+
+    // Update user in DB
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    user.area = {
+      area,
+      latitude,
+      longitude
+    };
+
+    await user.save();
+
+    // Send message with values, not as separate object
+    res.json({
+      message: `Location updated successfully. Area: ${area}, Latitude: ${latitude}, Longitude: ${longitude}`
+    });
+  } catch (err) {
+    console.error('Location fetch error:', err);
+    res.status(500).json({ error: 'Server error while fetching location.' });
+  }
+};
 

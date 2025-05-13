@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const jwt = require('jsonwebtoken');
+import mongoose from 'mongoose';
+import jwt from 'jsonwebtoken';
 
 // Define the user schema
 const userSchema = new mongoose.Schema({
@@ -10,7 +10,13 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   token: { type: String },
   userId: { type: String, unique: true, trim: true }, // 👈 Add this
-  profile_pic : {type : String},
+  profile_pic: { type: String },
+  area: {
+  area: { type: String, default: null },
+  latitude: { type: Number, default: null },
+  longitude: { type: Number, default: null }
+},
+
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -22,9 +28,6 @@ userSchema.post('save', async function (doc, next) {
   }
   next();
 });
-
-
-
 
 // Password comparison
 userSchema.methods.comparePassword = async function (candidatePassword) {
@@ -43,5 +46,7 @@ userSchema.methods.generateAuthToken = async function () {
   return token;
 };
 
+// ✅ Use ES module export
 const User = mongoose.model('User', userSchema);
-module.exports = User;
+
+export default User;

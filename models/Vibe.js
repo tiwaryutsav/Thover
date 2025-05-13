@@ -1,20 +1,20 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const vibeSchema = new mongoose.Schema({
   images: [{  // Changed from `image` to `images`
     type: String,
   }],
   user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
   rating: {
     type: String,
   },
-  text:{
-    type : String,
-    required : true,
+  text: {
+    type: String,
+    required: true,
   },
   imagePath: {  // <-- New field added
     type: String,
@@ -30,4 +30,6 @@ const vibeSchema = new mongoose.Schema({
   }
 });
 
-module.exports = mongoose.model('Vibe', vibeSchema);
+const Vibe = mongoose.model('Vibe', vibeSchema);
+
+export default Vibe;

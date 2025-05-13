@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const postSchema = new mongoose.Schema({
   topic: {
@@ -17,9 +17,9 @@ const postSchema = new mongoose.Schema({
     type: String,
     required: false  // Set to true if it's mandatory
   },
-  price : {
-    type : Number,
-    required : true
+  price: {
+    type: Number,
+    required: true
   },
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -28,4 +28,6 @@ const postSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-module.exports = mongoose.model('Post', postSchema);
+const Post = mongoose.model('Post', postSchema);
+
+export default Post;

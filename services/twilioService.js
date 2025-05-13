@@ -1,14 +1,17 @@
-require('dotenv').config();
-const twilio = require('twilio');
+import dotenv from 'dotenv';
+import twilioPkg from 'twilio';
+
+// Load environment variables from .env file
+dotenv.config();
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
 
-const client = twilio(accountSid, authToken);
+const client = twilioPkg(accountSid, authToken);
 
 // Send OTP via SMS
-async function sendSMS(phoneNumber) {
+export async function sendSMS(phoneNumber) {
   try {
     const verification = await client.verify.v2
       .services(verifyServiceSid)
@@ -26,7 +29,7 @@ async function sendSMS(phoneNumber) {
 }
 
 // Verify OTP
-async function verifyOTP(phoneNumber, code) {
+export async function verifyOTP(phoneNumber, code) {
   try {
     const verificationCheck = await client.verify.v2
       .services(verifyServiceSid)
@@ -42,8 +45,3 @@ async function verifyOTP(phoneNumber, code) {
     throw new Error('OTP verification failed');
   }
 }
-
-module.exports = {
-  sendSMS,
-  verifyOTP,
-};

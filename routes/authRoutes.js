@@ -1,13 +1,14 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const authController = require('../controllers/authController');
-const { protect } = require('../middleware/protect');
+import protect  from '../middleware/protect.js';
+import * as authController from '../controllers/authController.js';
+
 
 // Route to send OTP for phone number verification
 router.post('/send-otp', authController.sendOTP);
 
 // Route to verify OTP and proceed with registration or login
-router.post('/verify-otp', authController.verifyOTP);
+router.post('/register', authController.register);
 
 // Route to handle user login
 router.post('/login', authController.login);
@@ -23,5 +24,6 @@ router.get('/post/:postId', protect, authController.getVibesByPostId);
 router.post('/add-profile-pic', protect, authController.addProfilePic);
 router.put('/update-profile-pic', protect, authController.updateProfilePic);
 
+router.get('/update-location', protect, authController.getArea);
 
-module.exports = router;
+export default router;

@@ -22,4 +22,8 @@ const errorHandler = (err, req, res, next) => {
   });
 };
 
-module.exports = errorHandler; 
+// ❌ Don't use module.exports
+// module.exports = errorHandler;
+
+// ✅ Use ES module export
+export default errorHandler;
