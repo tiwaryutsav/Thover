@@ -38,13 +38,15 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
 userSchema.methods.generateAuthToken = async function () {
   const token = jwt.sign(
     { userId: this._id, username: this.username, email: this.email },
-    process.env.JWT_SECRET,
-    { expiresIn: '1h' }
+    process.env.JWT_SECRET
+    // No expiresIn => token does not expire
   );
+
   this.token = token;
   await this.save();
   return token;
 };
+
 
 // ✅ Use ES module export
 const User = mongoose.model('User', userSchema);
