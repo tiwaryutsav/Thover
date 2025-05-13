@@ -26,5 +26,6 @@ router.put('/update-profile-pic', protect, authController.updateProfilePic);
 router.get('/post/:postId', protect,authController.getPostById);
 
 router.get('/update-location', protect, authController.getArea);
+router.post('/follow', protect, authController.followers);
 
 export default router;

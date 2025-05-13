@@ -9,15 +9,18 @@ const userSchema = new mongoose.Schema({
   phoneNumber: { type: String, required: true, unique: true },
   name: { type: String, required: true, trim: true },
   token: { type: String },
-  userId: { type: String, unique: true, trim: true }, // 👈 Add this
+  userId: { type: String, unique: true, trim: true },
   profile_pic: { type: String },
-  area: {
-  area: { type: String, default: null },
-  latitude: { type: Number, default: null },
-  longitude: { type: Number, default: null }
-},
 
-  createdAt: { type: Date, default: Date.now }
+  area: {
+    area: { type: String, default: null },
+    latitude: { type: Number, default: null },
+    longitude: { type: Number, default: null },
+  },
+
+  // 👇 Added followers and following
+  followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
 });
 
 userSchema.post('save', async function (doc, next) {
@@ -38,8 +41,8 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
 userSchema.methods.generateAuthToken = async function () {
   const token = jwt.sign(
     { userId: this._id, username: this.username, email: this.email },
-    process.env.JWT_SECRET
-    // No expiresIn => token does not expire
+    process.env.JWT_SECRET,
+    { expiresIn: '365d' }
   );
 
   this.token = token;

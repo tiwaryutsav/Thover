@@ -607,3 +607,57 @@ export const getPostById = catchAsync(async (req, res) => {
     post,
   });
 });
+
+export const followers = catchAsync(async (req, res) => {
+  const { id } = req.body;
+  const currentUserId = req.user._id;  // Assuming current user is set from authentication middleware
+  
+  // Check if the id is provided
+  if (!id) {
+    return res.status(404).json({
+      success: false,
+      message: 'User ID not found',
+    });
+  }
+
+  // Find the target user
+  const targetUser = await User.findById(id);
+  const currentUser = await User.findById(currentUserId);
+
+  // Check if the target user exists
+  if (!targetUser) {
+    return res.status(404).json({
+      success: false,
+      message: 'Target user not found',
+    });
+  }
+
+  // Prevent the user from following themselves
+  if (currentUserId.toString() === id.toString()) {
+    return res.status(400).json({
+      success: false,
+      message: "You can't follow yourself.",
+    });
+  }
+
+  // Prevent duplicate follow
+  if (targetUser.followers.includes(currentUserId)) {
+    return res.status(400).json({
+      success: false,
+      message: 'You are already following this user.',
+    });
+  }
+
+  // Add the current user to the target user's followers and the target user to the current user's following
+  targetUser.followers.push(currentUserId);
+  currentUser.following.push(id);
+
+  // Save both users
+  await targetUser.save();
+  await currentUser.save();
+
+  res.status(200).json({
+    success: true,
+    message: `You are now following ${targetUser.username}`,
+  });
+});
