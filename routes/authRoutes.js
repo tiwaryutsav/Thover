@@ -20,9 +20,10 @@ router.put('/update-username', protect, authController.updateUsername);
 router.put('/update-password',protect, authController.updatePassword);
 router.get('/user-token', authController.getUserid);
 router.get('/allPosts',authController.getAllPosts);
-router.get('/post/:postId', protect, authController.getVibesByPostId);
+router.get('/vibes/:postId', protect, authController.getVibesByPostId);
 router.post('/add-profile-pic', protect, authController.addProfilePic);
 router.put('/update-profile-pic', protect, authController.updateProfilePic);
+router.get('/post/:postId', protect,authController.getPostById);
 
 router.get('/update-location', protect, authController.getArea);
 

@@ -588,3 +588,22 @@ export const getArea = async (req, res) => {
   }
 };
 
+//Route to get post using postid
+export const getPostById = catchAsync(async (req, res) => {
+  const { postId } = req.params;
+
+  // Find post by ID
+  const post = await Post.findById(postId); // Optional: populate related fields
+
+  if (!post) {
+    return res.status(404).json({
+      success: false,
+      message: 'Post not found',
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    post,
+  });
+});
