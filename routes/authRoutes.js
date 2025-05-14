@@ -28,5 +28,7 @@ router.get('/post/:postId', protect,authController.getPostById);
 router.get('/update-location', protect, authController.getArea);
 router.post('/follow', protect, authController.followers);
 router.post('/unfollow', protect, authController.unfollow);
+router.post('/like', protect, authController.likeVibe);
+router.post('/unlike', protect, authController.unlikeVibe);
 
 export default router;

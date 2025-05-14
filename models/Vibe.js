@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const vibeSchema = new mongoose.Schema({
-  images: [{  // Changed from `image` to `images`
+  images: [{
     type: String,
   }],
   user: {
@@ -14,16 +14,18 @@ const vibeSchema = new mongoose.Schema({
   },
   text: {
     type: String,
-    required: true,
   },
-  imagePath: {  // <-- New field added
+  imagePath: {
     type: String,
   },
   post: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Post', // link to Post
-    required: true,
+    ref: 'Post',
   },
+  likes: [{  // <-- New field for likes
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  }],
   created_at: {
     type: Date,
     default: Date.now

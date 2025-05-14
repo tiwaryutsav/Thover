@@ -6,6 +6,7 @@ import * as twilioService from '../services/twilioService.js'; // Correct the pa
 import catchAsync from '../utils/catchAsync.js';
 import Post from '../models/Post.js';  // Adjust the path as needed
 import Vibe from '../models/Vibe.js';
+import mongoose from 'mongoose';  // Add this line at the top of your file
 
 
 
@@ -716,3 +717,93 @@ export const unfollow = catchAsync(async (req, res) => {
     message: `You have unfollowed ${targetUser.username}`,
   });
 });
+
+//Route to add like a vibe
+export const likeVibe = catchAsync(async (req, res) => {
+  const { vibeId } = req.body;  // Only the vibeId is required to like the vibe
+  const currentUserId = req.user._id;  // Assuming the current user is set from authentication middleware
+  
+  // Check if vibeId is provided
+  if (!vibeId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Vibe ID is required',
+    });
+  }
+
+  // Find the vibe
+  const vibe = await Vibe.findById(vibeId);
+  
+  // Check if the vibe exists
+  if (!vibe) {
+    return res.status(404).json({
+      success: false,
+      message: 'Vibe not found',
+    });
+  }
+
+  // Check if the current user has already liked the vibe
+  if (vibe.likes.includes(currentUserId)) {
+    return res.status(400).json({
+      success: false,
+      message: 'You have already liked this vibe',
+    });
+  }
+
+  // Add the current user's ID to the likes array
+  vibe.likes.push(currentUserId);
+  
+  // Save the vibe with the updated likes
+  await vibe.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'You have liked this vibe',
+  });
+});
+
+//Route to unlike
+export const unlikeVibe = catchAsync(async (req, res) => {
+  const { vibeId } = req.body;  // Only the vibeId is required to unlike the vibe
+  const currentUserId = req.user._id;  // Assuming the current user is set from authentication middleware
+  
+  // Check if vibeId is provided
+  if (!vibeId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Vibe ID is required',
+    });
+  }
+
+  // Find the vibe
+  const vibe = await Vibe.findById(vibeId);
+  
+  // Check if the vibe exists
+  if (!vibe) {
+    return res.status(404).json({
+      success: false,
+      message: 'Vibe not found',
+    });
+  }
+
+  // Check if the current user has already liked the vibe
+  if (!vibe.likes.includes(currentUserId)) {
+    return res.status(400).json({
+      success: false,
+      message: 'You have not liked this vibe yet',
+    });
+  }
+
+  // Remove the current user's ID from the likes array
+  vibe.likes = vibe.likes.filter(userId => userId.toString() !== currentUserId.toString());
+  
+  // Save the vibe with the updated likes
+  await vibe.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'You have unliked this vibe',
+  });
+});
+
+
