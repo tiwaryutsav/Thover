@@ -18,7 +18,7 @@ router.post('/vibes', protect, authController.addVibe);
 router.put('/update-profile', protect, authController.updateUserProfile);
 router.put('/update-username', protect, authController.updateUsername);
 router.put('/update-password',protect, authController.updatePassword);
-router.get('/user-token', authController.getUserid);
+router.post('/user-token', protect,authController.getUserid);
 router.get('/allPosts',authController.getAllPosts);
 router.get('/vibes/:postId', protect, authController.getVibesByPostId);
 router.post('/add-profile-pic', protect, authController.addProfilePic);
@@ -33,6 +33,8 @@ router.post('/unlike', protect, authController.unlikeVibe);
 router.get('/user/:userId/posts', protect, authController.getPostsByUserId);
 router.get('/user/:userId/vibes', protect, authController.getVibesByUserId);
 router.get('/posts/most-vibes', protect, authController.getPostIdsWithMostVibes);
+router.post('/favorite-post', protect, authController.addFavoritePost);
+router.post('/un-favorite-post', protect, authController.removeFavoritePost);
 
 
 

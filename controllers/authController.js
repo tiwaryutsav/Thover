@@ -869,3 +869,84 @@ export const getPostIdsWithMostVibes = catchAsync(async (req, res) => {
 });
 
 
+//Route for favoirate
+export const addFavoritePost = catchAsync(async (req, res) => {
+  const { postId } = req.body;  // Get postId from request body
+  const currentUserId = req.user._id;  // Assuming user is authenticated and req.user._id has the userId
+
+  // Check if postId is provided
+  if (!postId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Post ID is required',
+    });
+  }
+
+  // Find the post to ensure it exists
+  const post = await Post.findById(postId);
+  if (!post) {
+    return res.status(404).json({
+      success: false,
+      message: 'Post not found',
+    });
+  }
+
+  // Check if the post is already in the favorites array
+  if (post.favorites.includes(postId)) {
+    return res.status(400).json({
+      success: false,
+      message: 'This post has already been added to favorites',
+    });
+  }
+
+  // Add the current post's ID to the favorites array of the post (not user)
+  post.favorites.push(postId);  // Add the postId to the favorites array of the post model
+  await post.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Post added to favorites',
+  });
+});
+
+//Route for unfavoirate
+export const removeFavoritePost = catchAsync(async (req, res) => {
+  const { postId } = req.body;  // Get postId from request body
+  const currentUserId = req.user._id;  // Assuming user is authenticated and req.user._id has the userId
+
+  // Check if postId is provided
+  if (!postId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Post ID is required',
+    });
+  }
+
+  // Find the post to ensure it exists
+  const post = await Post.findById(postId);
+  if (!post) {
+    return res.status(404).json({
+      success: false,
+      message: 'Post not found',
+    });
+  }
+
+  // Check if the post is in the favorites array
+  if (!post.favorites.includes(postId)) {
+    return res.status(400).json({
+      success: false,
+      message: 'This post is not in your favorites',
+    });
+  }
+
+  // Remove the current post's ID from the favorites array of the post (not user)
+  post.favorites = post.favorites.filter(favorite => favorite.toString() !== postId.toString());  // Remove the postId from the favorites array
+  await post.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Post removed from favorites',
+  });
+});
+
+

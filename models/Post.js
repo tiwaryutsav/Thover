@@ -13,9 +13,9 @@ const postSchema = new mongoose.Schema({
     type: String,
     required: true
   }],
-  imagePath: {  // <-- New field added
+  imagePath: {
     type: String,
-    required: false  // Set to true if it's mandatory
+    required: false
   },
   price: {
     type: Number,
@@ -25,7 +25,11 @@ const postSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
-  }
+  },
+  favorites: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Post'  // Referencing the Post model itself
+  }]
 }, { timestamps: true });
 
 const Post = mongoose.model('Post', postSchema);
