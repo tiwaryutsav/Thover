@@ -464,51 +464,51 @@ export const getVibesByPostId = catchAsync(async (req, res) => {
 
 //Add route to add Profile pic
 // controllers/userController.js
-export const addProfilePic = catchAsync(async (req, res) => {
-  const { imageUrl, imagePath } = req.body; // ✅ properly extract both
+// export const addProfilePic = catchAsync(async (req, res) => {
+//   const { imageUrl, imagePath } = req.body; // ✅ properly extract both
 
-  if (!req.user || !req.user._id) {
-    return res.status(401).json({
-      success: false,
-      message: 'Unauthorized: User information missing',
-    });
-  }
+//   if (!req.user || !req.user._id) {
+//     return res.status(401).json({
+//       success: false,
+//       message: 'Unauthorized: User information missing',
+//     });
+//   }
 
-  if (!imageUrl && !imagePath) {
-    return res.status(400).json({
-      success: false,
-      message: 'Either imageUrl or imagePath is required',
-    });
-  }
+//   if (!imageUrl && !imagePath) {
+//     return res.status(400).json({
+//       success: false,
+//       message: 'Either imageUrl or imagePath is required',
+//     });
+//   }
 
-  const user = await User.findById(req.user._id);
-  if (!user) {
-    return res.status(404).json({
-      success: false,
-      message: 'User not found',
-    });
-  }
+//   const user = await User.findById(req.user._id);
+//   if (!user) {
+//     return res.status(404).json({
+//       success: false,
+//       message: 'User not found',
+//     });
+//   }
 
-  // Set the profile picture (only if not already set)
-  if (!user.profile_pic) {
-    user.profile_pic = imageUrl || imagePath; // ✅ prioritize imageUrl if both
-    await user.save();
+//   // Set the profile picture (only if not already set)
+//   if (!user.profile_pic) {
+//     user.profile_pic = imageUrl || imagePath; // ✅ prioritize imageUrl if both
+//     await user.save();
 
-    return res.status(201).json({
-      success: true,
-      message: 'Profile picture added successfully',
-      profile_pic: user.profile_pic,
-    });
-  } else {
-    return res.status(400).json({
-      success: false,
-      message: 'Profile picture already exists. Use update route if needed.',
-    });
-  }
-});
+//     return res.status(201).json({
+//       success: true,
+//       message: 'Profile picture added successfully',
+//       profile_pic: user.profile_pic,
+//     });
+//   } else {
+//     return res.status(400).json({
+//       success: false,
+//       message: 'Profile picture already exists. Use update route if needed.',
+//     });
+//   }
+// });
 
 //update profile pic
-export const updateProfilePic = catchAsync(async (req, res) => {
+export const addUpdateProfilePic = catchAsync(async (req, res) => {
   const { imageUrl, imagePath } = req.body;
 
   if (!req.user || !req.user._id) {
@@ -533,15 +533,22 @@ export const updateProfilePic = catchAsync(async (req, res) => {
     });
   }
 
-  user.profile_pic = imageUrl || imagePath; // ✅ overwrite existing
+  // If no profile picture is present, add one. Otherwise, update the existing one.
+  if (!user.profile_pic) {
+    user.profile_pic = imageUrl || imagePath; // Add new profile picture
+  } else {
+    user.profile_pic = imageUrl || imagePath; // Update existing profile picture
+  }
+
   await user.save();
 
   return res.status(200).json({
     success: true,
-    message: 'Profile picture updated successfully',
+    message: user.profile_pic ? 'Profile picture updated successfully' : 'Profile picture added successfully',
     profile_pic: user.profile_pic,
   });
 });
+
 
 
 //Route to fetch location
