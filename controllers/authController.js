@@ -807,3 +807,65 @@ export const unlikeVibe = catchAsync(async (req, res) => {
 });
 
 
+//Route to get all posts through useri
+
+export const getPostsByUserId = catchAsync(async (req, res) => {
+  const { userId } = req.params;
+
+  const posts = await Post.find({
+    user: new mongoose.Types.ObjectId(userId),
+  });
+
+  res.status(200).json({
+    success: true,
+    count: posts.length,
+    posts,
+  });
+});
+
+export const getVibesByUserId = catchAsync(async (req, res) => {
+  const { userId } = req.params;
+
+  const vibes = await Vibe.find({
+    user: new mongoose.Types.ObjectId(userId),
+  });
+
+  res.status(200).json({
+    success: true,
+    count: vibes.length,
+    vibes,
+  });
+});
+
+//Route to get maximum postid
+export const getPostIdsWithMostVibes = catchAsync(async (req, res) => {
+  const postVibesCount = await Vibe.aggregate([
+    {
+      $match: { post: { $ne: null } } // Filter out null post (since it's called `post`, not `postId`)
+    },
+    {
+      $group: {
+        _id: "$post", // Group by post (not postId)
+        vibeCount: { $sum: 1 }, // Count the number of vibes for each post
+      },
+    },
+    {
+      $sort: { vibeCount: -1 }, // Sort in descending order based on vibeCount
+    },
+    {
+      $project: {
+        _id: 0, // Remove _id from result
+        postId: "$_id", // Rename _id to postId
+        vibeCount: 1, // Include vibeCount
+      },
+    },
+  ]);
+
+  res.status(200).json({
+    success: true,
+    count: postVibesCount.length,
+    postVibesCount,
+  });
+});
+
+
