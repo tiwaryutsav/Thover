@@ -22,7 +22,14 @@ const userSchema = new mongoose.Schema({
   },
   // 👇 Added followers and following
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
+  following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  accountType: {
+    type: String,
+    default: 'Personal'
+  },
+  professionType: { type: String, default: null },
+  profession: { type: String, default: null },
+
 });
 
 userSchema.post('save', async function (doc, next) {

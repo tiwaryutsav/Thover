@@ -991,3 +991,39 @@ export const setArea = async (req, res) => {
     res.status(500).json({ error: 'Server error while saving location.' });
   }
 };
+
+//Route to set accunt info
+// controllers/userController.js
+
+export const setAccountInfo = async (req, res) => {
+  const userId = req.user._id;
+  let { accountType, professionType, profession } = req.body;
+
+  // If accountType is not provided, default to 'Personal'
+  if (!accountType) {
+    accountType = 'Personal';
+  }
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    user.accountType = accountType;
+    user.professionType = professionType || null;
+    user.profession = profession || null;
+
+    await user.save();
+
+    res.json({
+      message: 'Account information updated successfully.',
+      accountType: user.accountType,
+      professionType: user.professionType,
+      profession: user.profession
+    });
+  } catch (err) {
+    console.error('Error updating account info:', err);
+    res.status(500).json({ error: 'Server error while updating account info.' });
+  }
+};
+
+
