@@ -877,11 +877,11 @@ export const getPostIdsWithMostVibes = catchAsync(async (req, res) => {
 
 
 //Route for favoirate
-export const addFavoritePost = catchAsync(async (req, res) => {
-  const { postId } = req.body;  // Get postId from request body
-  const currentUserId = req.user._id;  // Assuming user is authenticated and req.user._id has the userId
 
-  // Check if postId is provided
+export const favoritePost = catchAsync(async (req, res) => {
+  const { postId } = req.body;
+  const currentUserId = req.user._id;
+
   if (!postId) {
     return res.status(400).json({
       success: false,
@@ -889,8 +889,9 @@ export const addFavoritePost = catchAsync(async (req, res) => {
     });
   }
 
-  // Find the post to ensure it exists
+  // Find the post
   const post = await Post.findById(postId);
+
   if (!post) {
     return res.status(404).json({
       success: false,
@@ -898,30 +899,34 @@ export const addFavoritePost = catchAsync(async (req, res) => {
     });
   }
 
-  // Check if the post is already in the favorites array
-  if (post.favorites.includes(postId)) {
+  // Check if user already favorited the post
+  if (post.favorite && post.favorite.includes(currentUserId)) {
     return res.status(400).json({
       success: false,
-      message: 'This post has already been added to favorites',
+      message: 'You have already favorited this post',
     });
   }
 
-  // Add the current post's ID to the favorites array of the post (not user)
-  post.favorites.push(postId);  // Add the postId to the favorites array of the post model
+  // Initialize favorite array if undefined
+  if (!post.favorite) post.favorite = [];
+
+  // Add current user ID to favorite array
+  post.favorite.push(currentUserId);
+
+  // Save updated post
   await post.save();
 
   res.status(200).json({
     success: true,
-    message: 'Post added to favorites',
+    message: 'Post added to your favorites',
   });
 });
 
 //Route for unfavoirate
-export const removeFavoritePost = catchAsync(async (req, res) => {
-  const { postId } = req.body;  // Get postId from request body
-  const currentUserId = req.user._id;  // Assuming user is authenticated and req.user._id has the userId
+export const unfavoritePost = catchAsync(async (req, res) => {
+  const { postId } = req.body;
+  const currentUserId = req.user._id.toString(); // ensure it's a string
 
-  // Check if postId is provided
   if (!postId) {
     return res.status(400).json({
       success: false,
@@ -929,8 +934,8 @@ export const removeFavoritePost = catchAsync(async (req, res) => {
     });
   }
 
-  // Find the post to ensure it exists
   const post = await Post.findById(postId);
+
   if (!post) {
     return res.status(404).json({
       success: false,
@@ -938,23 +943,32 @@ export const removeFavoritePost = catchAsync(async (req, res) => {
     });
   }
 
-  // Check if the post is in the favorites array
-  if (!post.favorites.includes(postId)) {
+  // Convert all ObjectIds in favorite array to strings for accurate comparison
+  const hasFavorited = post.favorite?.some(
+    (id) => id.toString() === currentUserId
+  );
+
+  if (!hasFavorited) {
     return res.status(400).json({
       success: false,
-      message: 'This post is not in your favorites',
+      message: 'You have not favorited this post',
     });
   }
 
-  // Remove the current post's ID from the favorites array of the post (not user)
-  post.favorites = post.favorites.filter(favorite => favorite.toString() !== postId.toString());  // Remove the postId from the favorites array
+  // Filter out current user from favorite array
+  post.favorite = post.favorite.filter(
+    (id) => id.toString() !== currentUserId
+  );
+
   await post.save();
 
   res.status(200).json({
     success: true,
-    message: 'Post removed from favorites',
+    message: 'Post removed from your favorites',
   });
 });
+
+
 
 
 //route to set area

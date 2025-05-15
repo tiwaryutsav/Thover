@@ -28,11 +28,11 @@ router.post('/follow', protect, authController.followers);
 router.post('/unfollow', protect, authController.unfollow);
 router.post('/like', protect, authController.likeVibe);
 router.post('/unlike', protect, authController.unlikeVibe);
+router.post('/favorite', protect, protect,authController.favoritePost);
+router.post('/unfavorite', protect, protect,authController.unfavoritePost);
 router.get('/user/:userId/posts', protect, authController.getPostsByUserId);
 router.get('/user/:userId/vibes', protect, authController.getVibesByUserId);
 router.get('/posts/most-vibes', protect, authController.getPostIdsWithMostVibes);
-router.post('/favorite-post', protect, authController.addFavoritePost);
-router.post('/un-favorite-post', protect, authController.removeFavoritePost);
 router.post('/location', protect, authController.setArea);
 router.post('/account', protect, authController.setAccountInfo);
 
