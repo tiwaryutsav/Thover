@@ -271,7 +271,7 @@ export const getUserid = catchAsync(async (req, res) => {
 
 // Route to update profile
 export const updateUserProfile = catchAsync(async (req, res) => {
-  const { Bio, phoneNumber, name } = req.body;
+  const { Bio, name } = req.body;
 
   // 1. Ensure the user is authenticated
   if (!req.user || !req.user._id) {
@@ -290,9 +290,8 @@ export const updateUserProfile = catchAsync(async (req, res) => {
     });
   }
 
-  // 3. Apply updates (excluding username)
+  // 3. Apply updates (excluding phoneNumber and username)
   if (Bio) user.Bio = Bio;
-  if (phoneNumber) user.phoneNumber = phoneNumber;
   if (name) user.name = name;
 
   await user.save();
@@ -303,13 +302,13 @@ export const updateUserProfile = catchAsync(async (req, res) => {
     message: 'User profile updated successfully',
     user: {
       _id: user._id,
-      username: user.username, // included for client display, but not updated
+      username: user.username, // included for client display
       name: user.name,
-      phoneNumber: user.phoneNumber,
       Bio: user.Bio
     }
   });
 });
+
 
 
 //upadte username
