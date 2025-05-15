@@ -33,7 +33,7 @@ router.get('/user/:userId/vibes', protect, authController.getVibesByUserId);
 router.get('/posts/most-vibes', protect, authController.getPostIdsWithMostVibes);
 router.post('/favorite-post', protect, authController.addFavoritePost);
 router.post('/un-favorite-post', protect, authController.removeFavoritePost);
-
+router.post('/location', protect, authController.setArea);
 
 
 export default router;

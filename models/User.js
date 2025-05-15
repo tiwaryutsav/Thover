@@ -16,8 +16,10 @@ const userSchema = new mongoose.Schema({
     area: { type: String, default: null },
     latitude: { type: Number, default: null },
     longitude: { type: Number, default: null },
+    city: { type: String, default: null },
+    state: { type: String, default: null },
+    country: { type: String, default: null }
   },
-
   // 👇 Added followers and following
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
