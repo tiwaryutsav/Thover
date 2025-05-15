@@ -11,15 +11,12 @@ const userSchema = new mongoose.Schema({
   token: { type: String },
   userId: { type: String, unique: true, trim: true },
   profile_pic: { type: String },
-
-  area: {
-    area: { type: String, default: null },
-    latitude: { type: Number, default: null },
-    longitude: { type: Number, default: null },
-    city: { type: String, default: null },
-    state: { type: String, default: null },
-    country: { type: String, default: null }
-  },
+  area: { type: String, default: null },
+  latitude: { type: Number, default: null },
+  longitude: { type: Number, default: null },
+  city: { type: String, default: null },
+  state: { type: String, default: null },
+  country: { type: String, default: null },
   // 👇 Added followers and following
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
