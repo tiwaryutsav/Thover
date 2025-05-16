@@ -974,10 +974,6 @@ export const unfavoritePost = catchAsync(async (req, res) => {
 
 
 
-
-
-
-
 //route to set area
 export const setArea = async (req, res) => {
   const userId = req.user._id;
