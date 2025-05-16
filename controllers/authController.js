@@ -926,6 +926,53 @@ export const favoritePost = catchAsync(async (req, res) => {
 });
 
 
+//Route for unfavorite
+export const unfavoritePost = catchAsync(async (req, res) => {
+  const { postId } = req.body;
+  const currentUserId = req.user._id;
+
+  if (!postId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Post ID is required',
+    });
+  }
+
+  // Check if post exists
+  const post = await Post.findById(postId);
+  if (!post) {
+    return res.status(404).json({
+      success: false,
+      message: 'Post not found',
+    });
+  }
+
+  // Check if favorite exists
+  const existingFavorite = await Favorite.findOne({
+    userId: currentUserId,
+    postId,
+  });
+
+  if (!existingFavorite) {
+    return res.status(400).json({
+      success: false,
+      message: 'This post is not in your favorites',
+    });
+  }
+
+  // Remove the favorite entry
+  await Favorite.deleteOne({
+    userId: currentUserId,
+    postId,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Post removed from your favorites',
+  });
+});
+
+
 
 
 

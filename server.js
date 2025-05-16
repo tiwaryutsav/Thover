@@ -6,6 +6,8 @@ import errorHandler from './middleware/errorHandler.js';
 import authRoutes from './routes/authRoutes.js';
 import './config/db.js';
 
+
+
 // Load environment variables from .env file
 dotenv.config();
 
