@@ -25,10 +25,6 @@ const postSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  favorite: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  }]
 }, { timestamps: true });
 
 const Post = mongoose.model('Post', postSchema);

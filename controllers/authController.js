@@ -7,6 +7,7 @@ import catchAsync from '../utils/catchAsync.js';
 import Post from '../models/Post.js';  // Adjust the path as needed
 import Vibe from '../models/Vibe.js';
 import mongoose from 'mongoose';  // Add this line at the top of your file
+import Favorite from '../models/Favorite.js';
 
 
 
@@ -879,7 +880,6 @@ export const getPostIdsWithMostVibes = catchAsync(async (req, res) => {
 
 
 //Route for favoirate
-
 export const favoritePost = catchAsync(async (req, res) => {
   const { postId } = req.body;
   const currentUserId = req.user._id;
@@ -891,9 +891,8 @@ export const favoritePost = catchAsync(async (req, res) => {
     });
   }
 
-  // Find the post
+  // Check if post exists
   const post = await Post.findById(postId);
-
   if (!post) {
     return res.status(404).json({
       success: false,
@@ -901,22 +900,24 @@ export const favoritePost = catchAsync(async (req, res) => {
     });
   }
 
-  // Check if user already favorited the post
-  if (post.favorite && post.favorite.includes(currentUserId)) {
+  // Check if already favorited
+  const existingFavorite = await Favorite.findOne({
+    userId: currentUserId,
+    postId,
+  });
+
+  if (existingFavorite) {
     return res.status(400).json({
       success: false,
       message: 'You have already favorited this post',
     });
   }
 
-  // Initialize favorite array if undefined
-  if (!post.favorite) post.favorite = [];
-
-  // Add current user ID to favorite array
-  post.favorite.push(currentUserId);
-
-  // Save updated post
-  await post.save();
+  // Create a new favorite entry
+  await Favorite.create({
+    userId: currentUserId,
+    postId,
+  });
 
   res.status(200).json({
     success: true,
@@ -924,51 +925,9 @@ export const favoritePost = catchAsync(async (req, res) => {
   });
 });
 
+
 //Route for unfavoirate
-export const unfavoritePost = catchAsync(async (req, res) => {
-  const { postId } = req.body;
-  const currentUserId = req.user._id.toString(); // ensure it's a string
 
-  if (!postId) {
-    return res.status(400).json({
-      success: false,
-      message: 'Post ID is required',
-    });
-  }
-
-  const post = await Post.findById(postId);
-
-  if (!post) {
-    return res.status(404).json({
-      success: false,
-      message: 'Post not found',
-    });
-  }
-
-  // Convert all ObjectIds in favorite array to strings for accurate comparison
-  const hasFavorited = post.favorite?.some(
-    (id) => id.toString() === currentUserId
-  );
-
-  if (!hasFavorited) {
-    return res.status(400).json({
-      success: false,
-      message: 'You have not favorited this post',
-    });
-  }
-
-  // Filter out current user from favorite array
-  post.favorite = post.favorite.filter(
-    (id) => id.toString() !== currentUserId
-  );
-
-  await post.save();
-
-  res.status(200).json({
-    success: true,
-    message: 'Post removed from your favorites',
-  });
-});
 
 
 
