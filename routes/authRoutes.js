@@ -34,6 +34,6 @@ router.get('/user/:userId/vibes', protect, authController.getVibesByUserId);
 router.get('/posts/most-vibes', protect, authController.getPostIdsWithMostVibes);
 router.post('/location', protect, authController.setArea);
 router.post('/account', protect, authController.setAccountInfo);
-
+router.post("/check_favorite",protect,authController.checkFavoriteStatus);
 
 export default router;

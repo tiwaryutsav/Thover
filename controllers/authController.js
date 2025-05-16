@@ -926,7 +926,6 @@ export const favoritePost = catchAsync(async (req, res) => {
 });
 
 
-//Route for unfavoirate
 
 
 
@@ -1000,4 +999,32 @@ export const setAccountInfo = async (req, res) => {
   }
 };
 
+
+//Route to check favorite post
+
+export const checkFavoriteStatus = catchAsync(async (req, res) => {
+  const { postId } = req.body;
+  const currentUserId = req.user._id;
+
+  if (!postId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Post ID is required',
+    });
+  }
+
+  // Cast to ObjectId to avoid type mismatch
+  const isFavorited = await Favorite.findOne({
+    userId: new mongoose.Types.ObjectId(currentUserId),
+    postId: new mongoose.Types.ObjectId(postId),
+  });
+
+  res.status(200).json({
+    success: true,
+    favorited: !!isFavorited,
+    message: isFavorited
+      ? 'User has favorited this post'
+      : 'User has not favorited this post',
+  });
+});
 
