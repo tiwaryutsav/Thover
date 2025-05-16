@@ -138,7 +138,8 @@ export const addPost = catchAsync(async (req, res) => {
     !images ||
     !Array.isArray(images) ||
     images.length === 0 ||
-    price === undefined // allow 0 but not undefined
+    typeof price !== 'string' ||
+    price.trim() === ''
   ) {
     return res.status(400).json({
       success: false,
@@ -151,7 +152,7 @@ export const addPost = catchAsync(async (req, res) => {
     description,
     images,
     imagePath,
-    price,
+    price, // keep it as-is, even with symbols like "$25"
     user: userId,
   });
 
@@ -161,6 +162,8 @@ export const addPost = catchAsync(async (req, res) => {
     post,
   });
 });
+
+
 
 //Route to get all user Details
 export const getUserDetails = catchAsync(async (req, res) => {
