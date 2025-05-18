@@ -23,7 +23,6 @@ router.get('/allPosts',authController.getAllPosts);
 router.get('/vibes/:postId', protect, authController.getVibesByPostId);
 router.put('/add-update-profile-pic', protect, authController.addUpdateProfilePic);
 router.get('/post/:postId', protect,authController.getPostById);
-router.get('/update-location', protect, authController.getArea);
 router.post('/follow', protect, authController.followers);
 router.post('/unfollow', protect, authController.unfollow);
 router.post('/like', protect, authController.likeVibe);

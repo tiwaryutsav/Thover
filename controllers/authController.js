@@ -556,48 +556,6 @@ export const addUpdateProfilePic = catchAsync(async (req, res) => {
 
 //Route to fetch location
 
-export const getArea = async (req, res) => {
-  const userId = req.user._id;
-
-  // Get user's IP address
-  const ip =
-    req.headers['x-forwarded-for']?.split(',')[0] ||
-    req.connection.remoteAddress;
-
-  try {
-    // Call ip-api.com to get location
-    const geoRes = await fetch(`http://ip-api.com/json/${ip}`);
-    const geoData = await geoRes.json();
-
-    if (geoData.status !== 'success') {
-      return res.status(500).json({ error: 'Failed to fetch location from IP.' });
-    }
-
-    const area = geoData.city || geoData.regionName || geoData.country;
-    const latitude = geoData.lat;
-    const longitude = geoData.lon;
-
-    // Update user in DB
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: 'User not found.' });
-
-    user.area = {
-      area,
-      latitude,
-      longitude
-    };
-
-    await user.save();
-
-    // Send message with values, not as separate object
-    res.json({
-      message: `Location updated successfully. Area: ${area}, Latitude: ${latitude}, Longitude: ${longitude}`
-    });
-  } catch (err) {
-    console.error('Location fetch error:', err);
-    res.status(500).json({ error: 'Server error while fetching location.' });
-  }
-};
 
 //Route to get post using postid
 export const getPostById = catchAsync(async (req, res) => {
@@ -1071,3 +1029,4 @@ export const checkFavoriteStatus = catchAsync(async (req, res) => {
   });
 });
 
+//For Checking
