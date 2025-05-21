@@ -1081,35 +1081,28 @@ export const createConnection = async (req, res) => {
 //To check connection
 export const checkConnection = async (req, res) => {
   try {
-    const { postId, otherUserId } = req.body;
+    const { otherUserId } = req.body;
     const currentUserId = req.user._id;
 
-    if (!postId || !otherUserId) {
+    if (!otherUserId) {
       return res.status(400).json({
         success: false,
-        message: 'postId and otherUserId are required',
+        message: 'otherUserId is required',
       });
     }
 
     const connection = await Connection.findOne({
       $or: [
-        { connectedFrom: currentUserId, connectedTo: otherUserId, postId },
-        { connectedFrom: otherUserId, connectedTo: currentUserId, postId },
+        { connectedFrom: currentUserId, connectedTo: otherUserId },
+        { connectedFrom: otherUserId, connectedTo: currentUserId },
       ],
     });
 
-    if (connection) {
-      return res.status(200).json({
-        success: true,
-        message: 'Connection exists',
-        data: connection,
-      });
-    } else {
-      return res.status(404).json({
-        success: false,
-        message: 'No connection found',
-      });
-    }
+    return res.status(200).json({
+      success: true,
+      isConnected: !!connection,
+    });
+
   } catch (error) {
     console.error('Error checking connection:', error);
     res.status(500).json({
