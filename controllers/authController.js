@@ -1145,5 +1145,35 @@ export const getUserConnections = async (req, res) => {
 };
 
 
+export const getUserConnection = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'userId is required in request body',
+      });
+    }
+
+    const connections = await Connection.find({ connectedFrom: userId })
+      .sort({ createdAt: -1 }) // latest to oldest
+      .populate('connectedTo', 'name username phoneNumber profile_pic'); // include details of user who was connected to
+
+    // Extract only connectedTo user details
+    const connectedUsers = connections.map(conn => conn.connectedTo);
+
+    return res.status(200).json({
+      success: true,
+      connections: connectedUsers,
+    });
+  } catch (error) {
+    console.error('Error fetching connections:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching connections',
+    });
+  }
+};
 
 
