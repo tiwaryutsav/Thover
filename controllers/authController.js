@@ -8,6 +8,7 @@ import Post from '../models/Post.js';  // Adjust the path as needed
 import Vibe from '../models/Vibe.js';
 import mongoose from 'mongoose';  // Add this line at the top of your file
 import Favorite from '../models/Favorite.js';
+import { Connection } from '../models/Connection.js'; // adjust path as needed
 
 
 //abcd
@@ -1029,4 +1030,93 @@ export const checkFavoriteStatus = catchAsync(async (req, res) => {
   });
 });
 
-//For Checking
+
+export const createConnection = async (req, res) => {
+  try {
+    const { postId, text, topic, connectedTo } = req.body;
+    const connectedFrom = req.user._id;
+
+    if (!postId || !connectedTo || !topic) {
+      return res.status(400).json({
+        success: false,
+        message: 'postId, connectedTo, and topic are required',
+      });
+    }
+
+    const existingConnection = await Connection.findOne({
+      connectedTo,
+      connectedFrom,
+      postId,
+    });
+
+    if (existingConnection) {
+      return res.status(409).json({
+        success: false,
+        message: 'Connection already exists',
+      });
+    }
+
+    const newConnection = await Connection.create({
+      connectedTo,
+      connectedFrom,
+      postId,
+      text,
+      topic,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Connection created successfully',
+      data: newConnection,
+    });
+  } catch (error) {
+    console.error('Error creating connection:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while creating connection',
+    });
+  }
+};
+
+//To check connection
+export const checkConnection = async (req, res) => {
+  try {
+    const { postId, otherUserId } = req.body;
+    const currentUserId = req.user._id;
+
+    if (!postId || !otherUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'postId and otherUserId are required',
+      });
+    }
+
+    const connection = await Connection.findOne({
+      $or: [
+        { connectedFrom: currentUserId, connectedTo: otherUserId, postId },
+        { connectedFrom: otherUserId, connectedTo: currentUserId, postId },
+      ],
+    });
+
+    if (connection) {
+      return res.status(200).json({
+        success: true,
+        message: 'Connection exists',
+        data: connection,
+      });
+    } else {
+      return res.status(404).json({
+        success: false,
+        message: 'No connection found',
+      });
+    }
+  } catch (error) {
+    console.error('Error checking connection:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while checking connection',
+    });
+  }
+};
+
+
