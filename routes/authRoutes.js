@@ -37,6 +37,7 @@ router.post('/account', protect, authController.setAccountInfo);
 router.post("/check_favorite",protect,authController.checkFavoriteStatus);
 router.post("/create_connection", protect, authController.createConnection);
 router.post("/check_connection", protect, authController.checkConnection);
+router.post("/fetch_connections", protect, authController.getUserConnections);
 
 
 export default router;
