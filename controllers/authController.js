@@ -1145,7 +1145,7 @@ export const getUserConnections = async (req, res) => {
 };
 
 
-export const getUserConnection = async (req, res) => {
+export const getUserConnection_from = async (req, res) => {
   try {
     const { userId } = req.body;
 
