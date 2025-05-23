@@ -1125,15 +1125,12 @@ export const getUserConnections = async (req, res) => {
     }
 
     const connections = await Connection.find({ connectedTo: userId })
-      .sort({ createdAt: -1 }) // latest to oldest
-      .populate('connectedFrom', 'name username phoneNumber profile_pic'); // include details of user who connected
-
-    // Extract only connectedFrom user details
-    const connectedUsers = connections.map(conn => conn.connectedFrom);
+      .sort({ createdAt: -1 })
+      .select('_id connectedTo postId connectedFrom text topic createdAt __v');
 
     return res.status(200).json({
       success: true,
-      connections: connectedUsers,
+      connections,
     });
   } catch (error) {
     console.error('Error fetching connections:', error);
@@ -1143,6 +1140,7 @@ export const getUserConnections = async (req, res) => {
     });
   }
 };
+
 
 
 export const getUserConnection_from = async (req, res) => {
@@ -1157,15 +1155,12 @@ export const getUserConnection_from = async (req, res) => {
     }
 
     const connections = await Connection.find({ connectedFrom: userId })
-      .sort({ createdAt: -1 }) // latest to oldest
-      .populate('connectedTo', 'name username phoneNumber profile_pic'); // include details of user who was connected to
-
-    // Extract only connectedTo user details
-    const connectedUsers = connections.map(conn => conn.connectedTo);
+      .sort({ createdAt: -1 })
+      .select('_id connectedTo postId connectedFrom text topic createdAt __v'); // select only these fields
 
     return res.status(200).json({
       success: true,
-      connections: connectedUsers,
+      connections,
     });
   } catch (error) {
     console.error('Error fetching connections:', error);
@@ -1175,5 +1170,6 @@ export const getUserConnection_from = async (req, res) => {
     });
   }
 };
+
 
 
