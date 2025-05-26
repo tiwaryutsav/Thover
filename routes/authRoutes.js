@@ -39,6 +39,13 @@ router.post("/create_connection", protect, authController.createConnection);
 router.post("/check_connection", protect, authController.checkConnection);
 router.post("/fetch_connections", protect, authController.getUserConnections);
 router.post("/fetch_connection_from", protect, authController.getUserConnection_from);
-
+router.post('/send-otp_email', authController.sendOTP_email);
+router.post('/register_email', authController.register_email);
+router.post('/report_post', protect,authController.addPostReport);
+router.post('/report_vive', protect,authController.addViveReport);
+router.put('/update_profession', protect, authController.updateProfessionalInfo);
+router.post('/add_feedback', protect, authController.addFeedback);
+router.get('/all_feedback', protect, authController.getAllFeedbacks);
+router.patch('/update_post', protect, authController.updatePost);
 
 export default router;

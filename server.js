@@ -4,9 +4,8 @@ import cors from 'cors';
 import connectDB from './config/db.js';
 import errorHandler from './middleware/errorHandler.js';
 import authRoutes from './routes/authRoutes.js';
+import notificationRoutes from './routes/notification.js';
 import './config/db.js';
-
-
 
 // Load environment variables from .env file
 dotenv.config();
@@ -27,6 +26,8 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/auth', authRoutes);
 
+app.use('/api', notificationRoutes);
+
 // Error handling
 app.use(errorHandler);
 
@@ -35,6 +36,6 @@ connectDB();
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT,'0.0.0.0', () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`Server URL: http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Server URL: http:localhost:${PORT}`);
 });

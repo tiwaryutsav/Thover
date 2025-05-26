@@ -1,12 +1,13 @@
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 
-// Define the user schema
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, trim: true },
   Bio: { type: String, required: true, trim: true },
   password: { type: String, required: true, select: true },
-  phoneNumber: { type: String, required: true, unique: true },
+  phoneNumber: { type: String, unique: true },
+  email: { type: String,  unique: true },
   name: { type: String, required: true, trim: true },
   token: { type: String },
   userId: { type: String, unique: true, trim: true },
@@ -17,33 +18,38 @@ const userSchema = new mongoose.Schema({
   city: { type: String, default: null },
   state: { type: String, default: null },
   country: { type: String, default: null },
-  // 👇 Added followers and following
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  accountType: {
-    type: String,
-    default: 'Personal'
-  },
+  accountType: { type: String, default: 'Personal' },
   professionType: { type: String, default: null },
   profession: { type: String, default: null },
-
 });
 
+// ✅ Hash password before save
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
+
+// 👇 Add userId from _id after save
 userSchema.post('save', async function (doc, next) {
   if (!doc.userId) {
-    const shortId = doc._id.toString(); // last 4 chars of ObjectId
+    const shortId = doc._id.toString();
     doc.userId = shortId;
-    await doc.save(); // Save the updated document
+    await doc.save();
   }
   next();
 });
 
-// Password comparison
+// ✅ Secure password comparison
 userSchema.methods.comparePassword = async function (candidatePassword) {
-  return candidatePassword === this.password;
+  return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Generate JWT
+// ✅ JWT generation
 userSchema.methods.generateAuthToken = async function () {
   const token = jwt.sign(
     { userId: this._id, username: this.username, email: this.email },
@@ -56,8 +62,5 @@ userSchema.methods.generateAuthToken = async function () {
   return token;
 };
 
-
-// ✅ Use ES module export
 const User = mongoose.model('User', userSchema);
-
 export default User;

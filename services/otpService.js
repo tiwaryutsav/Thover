@@ -1,40 +1,36 @@
-const OTP_EXPIRY = 5 * 60 * 1000; // 5 minutes
+import { Resend } from 'resend';
 
-class OTPService {
-  constructor() {
-    this.otpStore = new Map();
+const resend = new Resend(process.env.RESEND_API_KEY);
+const otpStore = new Map(); // You should replace this with Redis or DB in production
+
+const generateOtp = () => Math.floor(100000 + Math.random() * 900000);
+
+export const sendOtpToEmail = async (email) => {
+  const otp = generateOtp();
+  const expiresAt = Date.now() + 5 * 60 * 1000;
+
+  otpStore.set(email, { otp, expiresAt });
+
+  await resend.emails.send({
+    from: 'onboarding@resend.dev',
+    to: email,
+    subject: 'Your OTP Code',
+    html: `<p>Your OTP is <strong>${otp}</strong>. It expires in 5 minutes.</p>`
+  });
+};
+
+export const verifyOtp = (email, inputOtp) => {
+  const record = otpStore.get(email);
+
+  if (!record) return { success: false, message: 'OTP not found' };
+  if (Date.now() > record.expiresAt) {
+    otpStore.delete(email);
+    return { success: false, message: 'OTP expired' };
   }
 
-  generateOTP() {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-  }
+  if (parseInt(inputOtp) !== record.otp) return { success: false, message: 'Invalid OTP' };
 
-  storeOTP(phoneNumber, otp) {
-    this.otpStore.set(phoneNumber, {
-      otp,
-      expiry: Date.now() + OTP_EXPIRY
-    });
-  }
+  otpStore.delete(email);
+  return { success: true };
+};
 
-  verifyOTP(phoneNumber, otp) {
-    const storedData = this.otpStore.get(phoneNumber);
-    
-    if (!storedData) {
-      return { valid: false, message: 'OTP expired or not sent' };
-    }
-
-    if (Date.now() > storedData.expiry) {
-      this.otpStore.delete(phoneNumber);
-      return { valid: false, message: 'OTP expired' };
-    }
-
-    if (storedData.otp !== otp) {
-      return { valid: false, message: 'Invalid OTP' };
-    }
-
-    this.otpStore.delete(phoneNumber);
-    return { valid: true };
-  }
-}
-
-module.exports = new OTPService(); 

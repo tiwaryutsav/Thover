@@ -9,9 +9,10 @@ import Vibe from '../models/Vibe.js';
 import mongoose from 'mongoose';  // Add this line at the top of your file
 import Favorite from '../models/Favorite.js';
 import { Connection } from '../models/Connection.js'; // adjust path as needed
+import { sendOtpToEmail, verifyOtp } from '../services/otpService.js';
+import Report from '../models/Report.js';
+import Feedback from '../models/Feedback.js';
 
-
-//abcd
 
 
 // Route to send OTP using Twilio Verify API
@@ -1170,6 +1171,281 @@ export const getUserConnection_from = async (req, res) => {
     });
   }
 };
+
+
+
+export const sendOTP_email = catchAsync(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email is required',
+    });
+  }
+
+  try {
+    await sendOtpToEmail(email);
+    res.json({
+      success: true,
+      message: 'OTP sent to email successfully',
+    });
+  } catch (error) {
+    console.error('Error sending OTP:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send OTP',
+    });
+  }
+});
+
+//route to register through otp
+
+export const register_email = catchAsync(async (req, res) => {
+  const { email, otp, userData } = req.body;
+
+  if (!email || !otp || !userData) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email, OTP, and user data are required'
+    });
+  }
+
+  const result = verifyOtp(email, otp);
+  if (!result.success) {
+    return res.status(401).json({
+      success: false,
+      message: result.message
+    });
+  }
+
+  const existingUser = await User.findOne({ email: userData.email });
+  if (existingUser) {
+    return res.status(409).json({
+      success: false,
+      message: 'Email already registered'
+    });
+  }
+
+  const newUser = await User.create({
+    username: userData.username,
+    password: userData.password,  // यहाँ password plain ही रहेगा
+    email: userData.email,
+    name: userData.name,
+    Bio: userData.Bio
+  });
+
+  const token = await newUser.generateAuthToken();
+
+  res.json({
+    success: true,
+    message: 'Registration successful',
+    userId: newUser._id,
+    token
+  });
+});
+
+//To create report
+export const addPostReport = catchAsync(async (req, res) => {
+  const { postId, text } = req.body;
+
+  if (!req.user || !req.user._id) {
+    return res.status(401).json({
+      success: false,
+      message: 'Unauthorized: User information missing',
+    });
+  }
+
+  const userId = req.user._id;
+
+  // Validate input
+  if (!text || !postId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Text and postId are required',
+    });
+  }
+
+  // Check if post exists
+  const postExists = await Post.findById(postId);
+  if (!postExists) {
+    return res.status(404).json({
+      success: false,
+      message: 'Post not found',
+    });
+  }
+
+  // Create new report document
+  const report = await Report.create({
+    post: postId,
+    user: userId,
+    text,
+    reportedAt: new Date(),
+  });
+
+  res.status(201).json({
+    success: true,
+    message: 'Report created and linked to post successfully',
+    report,
+  });
+});
+
+export const addViveReport = catchAsync(async (req, res) => {
+  const { vibeId, text } = req.body;
+
+  if (!req.user || !req.user._id) {
+    return res.status(401).json({
+      success: false,
+      message: 'Unauthorized: User information missing',
+    });
+  }
+
+  const userId = req.user._id;
+
+  // Validate input
+  if (!text || !vibeId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Text and viveId are required',
+    });
+  }
+
+  // Check if Vibe entity exists (fix model name here)
+  const vibeExists = await Vibe.findById(vibeId);  // ✅ use Vibe instead of Vive
+  if (!vibeExists) {
+    return res.status(404).json({
+      success: false,
+      message: 'Vibe not found',
+    });
+  }
+
+  // Create new report document
+  const report = await Report.create({
+    vive: vibeId,     // You can keep this key name in schema
+    user: userId,
+    text,
+    reportedAt: new Date(),
+  });
+
+  res.status(201).json({
+    success: true,
+    message: 'Report created and linked to vibe successfully',
+    report,
+  });
+});
+
+
+
+
+export const updateProfessionalInfo = async (req, res) => {
+  const userId = req.user._id;
+  const { professionType, profession } = req.body;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    const cleanedType = (user.accountType || '').toLowerCase().trim();
+
+    if (cleanedType !== 'professional') {
+      return res.status(403).json({
+        message: 'Only Professional accounts can update profession details.',
+      });
+    }
+
+    user.professionType = professionType || user.professionType;
+    user.profession = profession || user.profession;
+
+    await user.save();
+
+    return res.status(200).json({
+      message: 'Profession details updated successfully.',
+      professionType: user.professionType,
+      profession: user.profession,
+    });
+  } catch (err) {
+    console.error('Error updating profession details:', err);
+    res.status(500).json({ error: 'Server error while updating profession details.' });
+  }
+};
+
+
+export const addFeedback = async (req, res) => {
+  try {
+    const userId = req.user._id;  // current user from auth middleware
+    const { text } = req.body;
+
+    if (!text) {
+      return res.status(400).json({ error: 'Feedback text is required.' });
+    }
+
+    const feedback = new Feedback({
+      user_id: userId,  // <-- must match schema field exactly
+      text,
+      timestamp: new Date(),
+    });
+
+    await feedback.save();
+
+    res.status(201).json({ message: 'Feedback added successfully.', feedback });
+  } catch (err) {
+    console.error('Error adding feedback:', err);
+    res.status(500).json({ error: 'Server error while adding feedback.' });
+  }
+};
+
+
+export const getAllFeedbacks = async (req, res) => {
+  try {
+    const feedbacks = await Feedback.find(); // No .populate()
+    res.status(200).json({ feedbacks });
+  } catch (err) {
+    console.error('Error fetching feedbacks:', err);
+    res.status(500).json({ error: 'Server error while fetching feedbacks.' });
+  }
+};
+
+//Route to update post
+export const updatePost = catchAsync(async (req, res) => {
+  const { postId, userId, description, price } = req.body;
+
+  // Validate IDs
+  if (!mongoose.Types.ObjectId.isValid(postId) || !mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid postId or userId format",
+    });
+  }
+
+  // Find the post with matching postId and userId
+  const post = await Post.findOne({
+    _id: new mongoose.Types.ObjectId(postId),
+    user: new mongoose.Types.ObjectId(userId), // adjust to your schema key, it might be `userId` or `owner`
+  });
+
+  if (!post) {
+    return res.status(404).json({
+      success: false,
+      message: "Post not found or you are not authorized to update it",
+    });
+  }
+
+  // Update allowed fields
+  if (description) post.description = description;
+  if (price) post.price = price;
+
+  await post.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Post updated successfully",
+    post,
+  });
+});
+
+
+
+
 
 
 

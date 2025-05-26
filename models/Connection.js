@@ -25,6 +25,10 @@ const connectionSchema = new mongoose.Schema(
       type: String,
       required: false, // or true, if needed
     },
+    isConnected :{
+      type : String,
+      default : true,
+    }
   },
   {
     timestamps: { createdAt: true, updatedAt: false },
