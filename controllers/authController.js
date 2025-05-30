@@ -69,7 +69,6 @@ export const register = catchAsync(async (req, res) => {
     password: userData.password,
     phoneNumber: userData.phoneNumber,
     name: userData.name,
-    Bio: userData.Bio
   });
 
   const token = await newUser.generateAuthToken();
@@ -97,7 +96,7 @@ export const login = catchAsync(async (req, res) => {
   if (!user) {
     return res.status(401).json({
       success: false,
-      message: 'Invalid credentials'
+      message: 'No user found'
     });
   }
 
@@ -115,9 +114,10 @@ export const login = catchAsync(async (req, res) => {
     success: true,
     message: 'Login successful',
     token,
-    userId: user._id   // ✅ Returning user ID
+    userId: user._id
   });
 });
+
 
 //Route to add post
 export const addPost = catchAsync(async (req, res) => {
@@ -1232,7 +1232,6 @@ export const register_email = catchAsync(async (req, res) => {
     password: userData.password,  // यहाँ password plain ही रहेगा
     email: userData.email,
     name: userData.name,
-    Bio: userData.Bio
   });
 
   const token = await newUser.generateAuthToken();
@@ -1306,12 +1305,12 @@ export const addViveReport = catchAsync(async (req, res) => {
   if (!text || !vibeId) {
     return res.status(400).json({
       success: false,
-      message: 'Text and viveId are required',
+      message: 'Text and vibeId are required',
     });
   }
 
-  // Check if Vibe entity exists (fix model name here)
-  const vibeExists = await Vibe.findById(vibeId);  // ✅ use Vibe instead of Vive
+  // Check if Vibe exists
+  const vibeExists = await Vibe.findById(vibeId);
   if (!vibeExists) {
     return res.status(404).json({
       success: false,
@@ -1319,9 +1318,9 @@ export const addViveReport = catchAsync(async (req, res) => {
     });
   }
 
-  // Create new report document
+  // Create report
   const report = await Report.create({
-    vive: vibeId,     // You can keep this key name in schema
+    vibe: vibeId,  // ✅ Fixed key
     user: userId,
     text,
     reportedAt: new Date(),
@@ -1333,6 +1332,7 @@ export const addViveReport = catchAsync(async (req, res) => {
     report,
   });
 });
+
 
 //abcd
 
@@ -1444,8 +1444,147 @@ export const updatePost = catchAsync(async (req, res) => {
 });
 
 
+export const updatePasswordWithOldPassword = catchAsync(async (req, res) => {
+  const userId = req.user.id; // Comes from protect middleware
+  const { oldPassword, newPassword, confirmNewPassword } = req.body;
+
+  if (!oldPassword || !newPassword || !confirmNewPassword) {
+    return res.status(400).json({
+      success: false,
+      message: 'Old password, new password, and confirm new password are required',
+    });
+  }
+
+  if (newPassword !== confirmNewPassword) {
+    return res.status(400).json({
+      success: false,
+      message: 'New password and confirm password do not match',
+    });
+  }
+
+  const user = await User.findById(userId);
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: 'User not found',
+    });
+  }
+
+  const isMatch = await user.comparePassword(oldPassword);
+
+  if (!isMatch) {
+    return res.status(401).json({
+      success: false,
+      message: 'Old password is incorrect',
+    });
+  }
+
+  user.password = newPassword;
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Password updated successfully',
+  });
+});
 
 
+//Route to update password through email_otp
+export const updatePasswordWithEmailOtp = catchAsync(async (req, res) => {
+  const { email, otp, userData } = req.body;
+
+  if (
+    !email ||
+    !otp ||
+    !userData ||
+    !userData.password ||
+    !userData.confirmPassword
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email, OTP, password, and confirm password are required',
+    });
+  }
+
+  if (userData.password !== userData.confirmPassword) {
+    return res.status(400).json({
+      success: false,
+      message: 'Password and confirm password do not match',
+    });
+  }
+
+  // Use the verifyOtp function you already have
+  const verification = await verifyOtp(email, otp);
+
+  if (!verification || !verification.success) {
+    return res.status(401).json({
+      success: false,
+      message: verification?.message || 'Invalid or expired OTP',
+    });
+  }
+
+  const existingUser = await User.findOne({ email });
+
+  if (!existingUser) {
+    return res.status(404).json({
+      success: false,
+      message: 'User not found',
+    });
+  }
+
+  // Set new password and save
+  existingUser.password = userData.password;
+  await existingUser.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Password updated successfully',
+  });
+});
+
+export const getVibeAndAllByPostId = catchAsync(async (req, res) => {
+  const { postId, vibeId } = req.body;
+
+  if (!postId) {
+    return res.status(400).json({
+      success: false,
+      message: 'postId is required',
+    });
+  }
+
+  const postExists = await Post.findById(postId);
+  if (!postExists) {
+    return res.status(404).json({
+      success: false,
+      message: 'Post not found',
+    });
+  }
+
+  let specificVibe = null;
+  if (vibeId) {
+    specificVibe = await Vibe.findOne({ _id: vibeId, post: postId }).populate('user', 'name email');
+  }
+
+  const allVibes = await Vibe.find({ post: postId }).populate('user', 'name email');
+
+  if (!specificVibe && vibeId) {
+    return res.status(200).json({
+      success: true,
+      message: 'Vibe not found, returning all vibes for the post',
+      count: allVibes.length,
+      vibes: allVibes,
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: specificVibe ? 'Specific vibe found and returning all vibes' : 'Returning all vibes for the post',
+    specificVibe,
+    allVibes,
+    count: allVibes.length,
+  });
+});
 
 
 
