@@ -5,17 +5,17 @@ const connectionSchema = new mongoose.Schema(
     connectedTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true, // will be set from logged-in user
+      required: true,
     },
     postId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Post',
-      required: true, // from request body
+      required: true,
     },
     connectedFrom: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true, // from request body
+      required: true,
     },
     text: {
       type: String,
@@ -23,11 +23,15 @@ const connectionSchema = new mongoose.Schema(
     },
     topic: {
       type: String,
-      required: false, // or true, if needed
+      required: false,
     },
-    isConnected :{
-      type : String,
-      default : true,
+    isConnected: {
+      type: String,
+      default: true,
+    },
+    price: {
+      type: String, // You can change this to String if needed
+      required: false,
     }
   },
   {

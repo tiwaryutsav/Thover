@@ -47,8 +47,11 @@ router.put('/update_profession', protect, authController.updateProfessionalInfo)
 router.post('/add_feedback', protect, authController.addFeedback);
 router.get('/all_feedback', protect, authController.getAllFeedbacks);
 router.patch('/update_post', protect, authController.updatePost);
-router.post('/update-password', protect, authController.updatePasswordWithOldPassword);
-router.put('/update-password-email',protect, authController.updatePasswordWithEmailOtp);
+router.post('/update-password',  authController.updatePasswordWithOldPassword);
+router.put('/update-password-email', authController.updatePasswordWithEmailOtp);
 router.post('/vibes/getByPostAndVibe',protect, authController.getVibeAndAllByPostId);
+// router.post('/sendWhatsApp', authController.sendWhatsAppOtp);
+router.post('/sendWhatsApp', authController.sendWhatsAppOtp);
+router.post('/verifyWhatsapp', authController.verifyWhatsAppOtp);
 
 export default router;

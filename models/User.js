@@ -5,8 +5,7 @@ import bcrypt from 'bcryptjs';
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, trim: true },
   password: { type: String, required: true, select: true },
-  // phoneNumber: { type: String, unique: true, required : true },
-  email: { type: String,  unique: true },
+  email: { type: String, unique: true },
   name: { type: String, required: true, trim: true },
   token: { type: String },
   userId: { type: String, unique: true, trim: true },
@@ -22,6 +21,7 @@ const userSchema = new mongoose.Schema({
   accountType: { type: String, default: 'Personal' },
   professionType: { type: String, default: null },
   profession: { type: String, default: null },
+  bio: { type: String, default: '' }, // ✅ Added bio field here
 });
 
 // ✅ Hash password before save

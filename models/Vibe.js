@@ -22,10 +22,17 @@ const vibeSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Post',
   },
-  likes: [{  // <-- New field for likes
+  likes: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
   }],
+  topic: {
+    type: String, // e.g., "Travel", "Food", etc.
+  },
+  vibeType: {
+    type: String, // e.g., "Positive", "Negative", "Neutral"
+    default : null
+  },
   created_at: {
     type: Date,
     default: Date.now

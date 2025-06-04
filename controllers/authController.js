@@ -12,6 +12,8 @@ import { Connection } from '../models/Connection.js'; // adjust path as needed
 import { sendOtpToEmail, verifyOtp } from '../services/otpService.js';
 import Report from '../models/Report.js';
 import Feedback from '../models/Feedback.js';
+import axios from 'axios';
+
 
 
 
@@ -201,7 +203,7 @@ export const getUserDetails = catchAsync(async (req, res) => {
 
 // Route to add a vibe
 export const addVibe = catchAsync(async (req, res) => {
-  const { images, rating, text, imagePath, postId } = req.body;
+  const { images, rating, text, imagePath, postId, topic, vibeType } = req.body;
 
   if (!req.user || !req.user._id) {
     return res.status(401).json({
@@ -236,6 +238,8 @@ export const addVibe = catchAsync(async (req, res) => {
     imagePath,
     user: userId,
     post: postId,
+    topic,
+    vibeType
   });
 
   res.status(201).json({
@@ -244,7 +248,6 @@ export const addVibe = catchAsync(async (req, res) => {
     vibe,
   });
 });
-
 
 export const getUserid = catchAsync(async (req, res) => {
   const { token } = req.body;
@@ -1034,7 +1037,7 @@ export const checkFavoriteStatus = catchAsync(async (req, res) => {
 
 export const createConnection = async (req, res) => {
   try {
-    const { postId, text, topic, connectedTo } = req.body;
+    const { postId, text, topic, connectedTo, price } = req.body;
     const connectedFrom = req.user._id;
 
     if (!postId || !connectedTo || !topic) {
@@ -1063,6 +1066,7 @@ export const createConnection = async (req, res) => {
       postId,
       text,
       topic,
+      price, // <-- added here
     });
 
     res.status(201).json({
@@ -1078,6 +1082,7 @@ export const createConnection = async (req, res) => {
     });
   }
 };
+
 
 //To check connection
 export const checkConnection = async (req, res) => {
@@ -1181,6 +1186,15 @@ export const sendOTP_email = catchAsync(async (req, res) => {
     return res.status(400).json({
       success: false,
       message: 'Email is required',
+    });
+  }
+
+  // Check if email is already registered
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    return res.status(409).json({
+      success: false,
+      message: 'Email is already registered',
     });
   }
 
@@ -1334,8 +1348,6 @@ export const addViveReport = catchAsync(async (req, res) => {
 });
 
 
-//abcd
-
 
 export const updateProfessionalInfo = async (req, res) => {
   const userId = req.user._id;
@@ -1445,13 +1457,12 @@ export const updatePost = catchAsync(async (req, res) => {
 
 
 export const updatePasswordWithOldPassword = catchAsync(async (req, res) => {
-  const userId = req.user.id; // Comes from protect middleware
-  const { oldPassword, newPassword, confirmNewPassword } = req.body;
+  const { email, oldPassword, newPassword, confirmNewPassword } = req.body;
 
-  if (!oldPassword || !newPassword || !confirmNewPassword) {
+  if (!email || !oldPassword || !newPassword || !confirmNewPassword) {
     return res.status(400).json({
       success: false,
-      message: 'Old password, new password, and confirm new password are required',
+      message: 'Email, old password, new password, and confirm password are required',
     });
   }
 
@@ -1462,7 +1473,7 @@ export const updatePasswordWithOldPassword = catchAsync(async (req, res) => {
     });
   }
 
-  const user = await User.findById(userId);
+  const user = await User.findOne({ email }).select('+password'); // Ensure password is selected
 
   if (!user) {
     return res.status(404).json({
@@ -1488,6 +1499,7 @@ export const updatePasswordWithOldPassword = catchAsync(async (req, res) => {
     message: 'Password updated successfully',
   });
 });
+
 
 
 //Route to update password through email_otp
@@ -1588,3 +1600,71 @@ export const getVibeAndAllByPostId = catchAsync(async (req, res) => {
 
 
 
+export const sendWhatsAppOtp = catchAsync(async (req, res) => {
+  const { mobileNumber } = req.body;
+
+  if (!mobileNumber) {
+    return res.status(400).json({
+      success: false,
+      message: 'Mobile number is required',
+    });
+  }
+
+  // Construct URL with query params dynamically
+  const url = `${process.env.MESSAGECENTRAL_BASE_URL}?countryCode=91&customerId=${process.env.MESSAGECENTRAL_CUSTOMER_ID}&flowType=WHATSAPP&mobileNumber=${mobileNumber}`;
+  
+  try {
+    const response = await axios.post(url, null, {
+      headers: {
+        authToken: process.env.MESSAGECENTRAL_AUTH_TOKEN,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'OTP sent successfully via WhatsApp',
+      data: response.data,
+    });
+  } catch (error) {
+    console.error('OTP sending failed:', error.response?.data || error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to send OTP',
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+export const verifyWhatsAppOtp = catchAsync(async (req, res) => {
+  const { mobileNumber, verificationId, code } = req.body;
+
+  if (!mobileNumber || !verificationId || !code) {
+    return res.status(400).json({
+      success: false,
+      message: 'Mobile number, verificationId, and code are required',
+    });
+  }
+
+  const url = `${process.env.MESSAGECENTRAL_VALIDATE_URL}?countryCode=91&mobileNumber=${mobileNumber}&verificationId=${verificationId}&customerId=${process.env.MESSAGECENTRAL_CUSTOMER_ID}&code=${code}`;
+
+  try {
+    const response = await axios.get(url, {
+      headers: {
+        authToken: process.env.MESSAGECENTRAL_AUTH_TOKEN,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'OTP verified successfully',
+      data: response.data,
+    });
+  } catch (error) {
+    console.error('OTP verification failed:', error.response?.data || error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'OTP verification failed',
+      error: error.response?.data || error.message,
+    });
+  }
+});
