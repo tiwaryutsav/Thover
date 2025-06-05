@@ -1601,7 +1601,7 @@ export const getVibeAndAllByPostId = catchAsync(async (req, res) => {
 
 
 export const sendWhatsAppOtp = catchAsync(async (req, res) => {
-  const { mobileNumber } = req.body;
+  let { mobileNumber } = req.body;
 
   if (!mobileNumber) {
     return res.status(400).json({
@@ -1610,8 +1610,19 @@ export const sendWhatsAppOtp = catchAsync(async (req, res) => {
     });
   }
 
-  // Construct URL with query params dynamically
-  const url = `${process.env.MESSAGECENTRAL_BASE_URL}?countryCode=91&customerId=${process.env.MESSAGECENTRAL_CUSTOMER_ID}&flowType=WHATSAPP&mobileNumber=${mobileNumber}`;
+  // Accept plain 10-digit number only
+  const cleanedNumber = mobileNumber.replace(/\D/g, '');
+  if (cleanedNumber.length !== 10) {
+    return res.status(400).json({
+      success: false,
+      message: 'Mobile number must be 10 digits',
+    });
+  }
+
+  // Send only 10-digit number because countryCode=91 is in the URL
+  const formattedNumber = cleanedNumber;
+
+  const url = `${process.env.MESSAGECENTRAL_BASE_URL}?countryCode=91&customerId=${process.env.MESSAGECENTRAL_CUSTOMER_ID}&flowType=WHATSAPP&mobileNumber=${formattedNumber}`;
   
   try {
     const response = await axios.post(url, null, {
@@ -1635,8 +1646,11 @@ export const sendWhatsAppOtp = catchAsync(async (req, res) => {
   }
 });
 
+
+
+
 export const verifyWhatsAppOtp = catchAsync(async (req, res) => {
-  const { mobileNumber, verificationId, code } = req.body;
+  let { mobileNumber, verificationId, code } = req.body;
 
   if (!mobileNumber || !verificationId || !code) {
     return res.status(400).json({
@@ -1645,7 +1659,18 @@ export const verifyWhatsAppOtp = catchAsync(async (req, res) => {
     });
   }
 
-  const url = `${process.env.MESSAGECENTRAL_VALIDATE_URL}?countryCode=91&mobileNumber=${mobileNumber}&verificationId=${verificationId}&customerId=${process.env.MESSAGECENTRAL_CUSTOMER_ID}&code=${code}`;
+  const cleanedNumber = mobileNumber.replace(/\D/g, '');
+  if (cleanedNumber.length !== 10) {
+    return res.status(400).json({
+      success: false,
+      message: 'Mobile number must be 10 digits',
+    });
+  }
+
+  // ✅ Format with +91 before sending to provider and saving to DB
+  const formattedNumber = `+91${cleanedNumber}`;
+
+  const url = `${process.env.MESSAGECENTRAL_VALIDATE_URL}?countryCode=91&mobileNumber=${formattedNumber}&verificationId=${verificationId}&customerId=${process.env.MESSAGECENTRAL_CUSTOMER_ID}&code=${code}`;
 
   try {
     const response = await axios.get(url, {
@@ -1654,9 +1679,20 @@ export const verifyWhatsAppOtp = catchAsync(async (req, res) => {
       },
     });
 
+    // ✅ Ensure user is authenticated
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized: User not logged in',
+      });
+    }
+
+    // ✅ Save as +91XXXXXXXXXX
+    await User.findByIdAndUpdate(req.user._id, { phoneNumber: formattedNumber });
+
     return res.status(200).json({
       success: true,
-      message: 'OTP verified successfully',
+      message: 'OTP verified and phone number updated successfully',
       data: response.data,
     });
   } catch (error) {
@@ -1668,3 +1704,5 @@ export const verifyWhatsAppOtp = catchAsync(async (req, res) => {
     });
   }
 });
+
+

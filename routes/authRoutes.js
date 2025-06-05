@@ -52,6 +52,6 @@ router.put('/update-password-email', authController.updatePasswordWithEmailOtp);
 router.post('/vibes/getByPostAndVibe',protect, authController.getVibeAndAllByPostId);
 // router.post('/sendWhatsApp', authController.sendWhatsAppOtp);
 router.post('/sendWhatsApp', authController.sendWhatsAppOtp);
-router.post('/verifyWhatsapp', authController.verifyWhatsAppOtp);
+router.post('/verifyWhatsapp',protect, authController.verifyWhatsAppOtp);
 
 export default router;

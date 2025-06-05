@@ -21,8 +21,10 @@ const userSchema = new mongoose.Schema({
   accountType: { type: String, default: 'Personal' },
   professionType: { type: String, default: null },
   profession: { type: String, default: null },
-  bio: { type: String, default: '' }, // ✅ Added bio field here
+  bio: { type: String, default: '' },
+  phoneNumber: { type: String, default: '' } // ✅ New phone number field for WhatsApp verification
 });
+
 
 // ✅ Hash password before save
 userSchema.pre('save', async function (next) {
