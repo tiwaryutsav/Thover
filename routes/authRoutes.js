@@ -53,5 +53,8 @@ router.post('/vibes/getByPostAndVibe',protect, authController.getVibeAndAllByPos
 // router.post('/sendWhatsApp', authController.sendWhatsAppOtp);
 router.post('/sendWhatsApp', authController.sendWhatsAppOtp);
 router.post('/verifyWhatsapp',protect, authController.verifyWhatsAppOtp);
-
+router.post('/addReferral', protect, authController.addReferral);
+router.post('/checkReferral',protect, authController.checkReferralCode);
+router.post('/login-email', authController.loginWithEmail);
+router.post('/apply-referral',authController.applyReferralCode);
 export default router;

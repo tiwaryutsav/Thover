@@ -13,6 +13,8 @@ import { sendOtpToEmail, verifyOtp } from '../services/otpService.js';
 import Report from '../models/Report.js';
 import Feedback from '../models/Feedback.js';
 import axios from 'axios';
+import Referral from '../models/referral.js';
+import crypto from 'crypto'; // 
 
 
 
@@ -1707,3 +1709,143 @@ export const verifyWhatsAppOtp = catchAsync(async (req, res) => {
 });
 
 
+// 🔧 Utility to generate unique 8-character referral code
+const generateReferralCode = async () => {
+  let code;
+  let exists = true;
+
+  while (exists) {
+    code = crypto.randomBytes(4).toString('hex').toUpperCase().slice(0, 8);
+    const existing = await Referral.findOne({ referralCode: code });
+    exists = !!existing;
+  }
+
+  return code;
+};
+
+export const addReferral = catchAsync(async (req, res) => {
+  const { coin } = req.body;
+
+  // ✅ Ensure user is logged in
+  if (!req.user || !req.user._id) {
+    return res.status(401).json({
+      success: false,
+      message: 'Unauthorized: User not logged in',
+    });
+  }
+
+  try {
+    // ✅ Generate a unique referral code
+    const referralCode = await generateReferralCode();
+
+    // ✅ Create referral
+    const newReferral = await Referral.create({
+      referralCode,
+      coin: coin ?? 0,
+      userId: req.user._id,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Referral added successfully',
+      data: newReferral,
+    });
+  } catch (error) {
+    console.error('Error adding referral:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to add referral',
+      error: error.message,
+    });
+  }
+});
+
+export const checkReferralCode = catchAsync(async (req, res) => {
+  const { referralCode } = req.body;
+
+  if (!referralCode) {
+    return res.status(400).json({
+      success: false,
+      message: 'Referral code is required',
+    });
+  }
+
+  const existingReferral = await Referral.findOne({ referralCode });
+
+  return res.status(200).json({
+    success: true,
+    exists: !!existingReferral,
+  });
+});
+
+//Login with email
+export const loginWithEmail = catchAsync(async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email and password are required'
+    });
+  }
+
+  const user = await User.findOne({ email }).select('+password');
+  if (!user) {
+    return res.status(401).json({
+      success: false,
+      message: 'No user found with that email'
+    });
+  }
+
+  const isMatch = await user.comparePassword(password);
+  if (!isMatch) {
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid credentials'
+    });
+  }
+
+  const token = await user.generateAuthToken();
+
+  res.json({
+    success: true,
+    message: 'Login successful',
+    token,
+    userId: user._id
+  });
+});
+
+
+export const applyReferralCode = catchAsync(async (req, res) => {
+  const { referralCode } = req.body;
+
+  if (!referralCode) {
+    return res.status(400).json({
+      success: false,
+      message: 'Referral code is required',
+    });
+  }
+
+  // Find the referral entry
+  const referral = await Referral.findOne({ referralCode });
+
+  if (!referral) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid referral code',
+    });
+  }
+
+  // Add 10 coins every time the referral code is used
+  referral.coin += 10;
+  await referral.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Referral code matched. 10 coins added successfully.',
+    referral: {
+      referralCode: referral.referralCode,
+      totalCoins: referral.coin,
+    },
+  });
+});
