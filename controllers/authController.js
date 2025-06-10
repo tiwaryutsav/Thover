@@ -15,6 +15,7 @@ import Feedback from '../models/Feedback.js';
 import axios from 'axios';
 import Referral from '../models/referral.js';
 import crypto from 'crypto'; // 
+import { v4 as uuidv4 } from 'uuid';
 
 
 
@@ -1735,6 +1736,18 @@ export const addReferral = catchAsync(async (req, res) => {
   }
 
   try {
+    // ✅ Check if referral already exists for this user
+    const existingReferral = await Referral.findOne({ userId: req.user._id });
+
+    if (existingReferral) {
+      // ✅ Return existing referral
+      return res.status(200).json({
+        success: true,
+        message: 'Referral already exists',
+        data: existingReferral,
+      });
+    }
+
     // ✅ Generate a unique referral code
     const referralCode = await generateReferralCode();
 
@@ -1759,6 +1772,7 @@ export const addReferral = catchAsync(async (req, res) => {
     });
   }
 });
+
 
 export const checkReferralCode = catchAsync(async (req, res) => {
   const { referralCode } = req.body;
@@ -1849,3 +1863,107 @@ export const applyReferralCode = catchAsync(async (req, res) => {
     },
   });
 });
+
+export const getReferralByUserId = catchAsync(async (req, res) => {
+  // ✅ Get userId from logged-in user (middleware should attach req.user)
+  const userId = req.user?._id;
+
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: 'Unauthorized: User not logged in',
+    });
+  }
+
+  let referral = await Referral.findOne({ userId });
+
+  // If referral doesn't exist, create one
+  if (!referral) {
+    const referralCode = uuidv4().slice(0, 8); // generate 8-char code
+
+    referral = await Referral.create({
+      userId,
+      referralCode,
+      coin: 0,
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    referral: {
+      referralCode: referral.referralCode,
+      totalCoins: referral.coin,
+    },
+  });
+});
+
+
+
+export const deletePost = catchAsync(async (req, res) => {
+  const { postId } = req.body;
+
+  if (!req.user || !req.user._id) {
+    return res.status(401).json({
+      success: false,
+      message: 'Unauthorized: User not logged in',
+    });
+  }
+
+  if (!postId) {
+    return res.status(400).json({
+      success: false,
+      message: 'postId is required',
+    });
+  }
+
+  const post = await Post.findOne({ _id: postId, user: req.user._id });
+
+  if (!post) {
+    return res.status(404).json({
+      success: false,
+      message: 'Post not found or you are not authorized to delete it',
+    });
+  }
+
+  await Post.deleteOne({ _id: postId });
+
+  res.status(200).json({
+    success: true,
+    message: 'Post deleted successfully',
+  });
+});
+
+export const deleteVibe = catchAsync(async (req, res) => {
+  const { vibeId } = req.body;
+
+  if (!req.user || !req.user._id) {
+    return res.status(401).json({
+      success: false,
+      message: 'Unauthorized: User not logged in',
+    });
+  }
+
+  if (!vibeId) {
+    return res.status(400).json({
+      success: false,
+      message: 'vibeId is required',
+    });
+  }
+
+  const vibe = await Vibe.findOne({ _id: vibeId, user: req.user._id });
+
+  if (!vibe) {
+    return res.status(404).json({
+      success: false,
+      message: 'Vibe not found or you are not authorized to delete it',
+    });
+  }
+
+  await Vibe.deleteOne({ _id: vibeId });
+
+  res.status(200).json({
+    success: true,
+    message: 'Vibe deleted successfully',
+  });
+});
+

@@ -2,28 +2,34 @@ import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
-const userSchema = new mongoose.Schema({
-  username: { type: String, required: true, trim: true },
-  password: { type: String, required: true, select: true },
-  email: { type: String, unique: true },
-  name: { type: String, required: true, trim: true },
-  token: { type: String },
-  userId: { type: String, unique: true, trim: true },
-  profile_pic: { type: String },
-  area: { type: String, default: null },
-  latitude: { type: Number, default: null },
-  longitude: { type: Number, default: null },
-  city: { type: String, default: null },
-  state: { type: String, default: null },
-  country: { type: String, default: null },
-  followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  accountType: { type: String, default: 'Personal' },
-  professionType: { type: String, default: null },
-  profession: { type: String, default: null },
-  bio: { type: String, default: '' },
-  phoneNumber: { type: String, default: '' } // ✅ New phone number field for WhatsApp verification
-});
+const userSchema = new mongoose.Schema(
+  {
+    username: { type: String, required: true, trim: true },
+    password: { type: String, required: true, select: true },
+    email: { type: String, unique: true },
+    name: { type: String, required: true, trim: true },
+    token: { type: String },
+    userId: { type: String, unique: true, trim: true },
+    profile_pic: { type: String },
+    area: { type: String, default: null },
+    latitude: { type: Number, default: null },
+    longitude: { type: Number, default: null },
+    city: { type: String, default: null },
+    state: { type: String, default: null },
+    country: { type: String, default: null },
+    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    accountType: { type: String, default: 'Personal' },
+    professionType: { type: String, default: null },
+    profession: { type: String, default: null },
+    bio: { type: String, default: '' },
+    phoneNumber: { type: String, default: '' }
+  },
+  {
+    timestamps: true // ✅ Add this line
+  }
+);
+
 
 
 // ✅ Hash password before save

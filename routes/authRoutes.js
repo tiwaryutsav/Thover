@@ -57,4 +57,8 @@ router.post('/addReferral', protect, authController.addReferral);
 router.post('/checkReferral',protect, authController.checkReferralCode);
 router.post('/login-email', authController.loginWithEmail);
 router.post('/apply-referral',authController.applyReferralCode);
+router.post('/referral-code',protect, authController.getReferralByUserId);
+router.delete('/delete_post', protect, authController.deletePost);
+router.delete('/delete_vibe', protect, authController.deleteVibe);
+
 export default router;
