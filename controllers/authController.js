@@ -443,7 +443,7 @@ export const updatePassword = catchAsync(async (req, res) => {
 //Route to get all the post
 
 export const getAllPosts = catchAsync(async (req, res) => {
-  const posts = await Post.find();
+  const posts = await Post.find().sort({ createdAt: -1 }); // Sort by newest first
 
   res.status(200).json({
     success: true,
@@ -451,6 +451,7 @@ export const getAllPosts = catchAsync(async (req, res) => {
     posts,
   });
 });
+
 
 //Route to get vives through postid
 export const getVibesByPostId = catchAsync(async (req, res) => {
@@ -1967,3 +1968,63 @@ export const deleteVibe = catchAsync(async (req, res) => {
   });
 });
 
+export const searchByUsername = async (req, res) => {
+  try {
+    const { username } = req.query;
+
+    if (!username || username.length < 3) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username query must be at least 3 characters',
+      });
+    }
+
+    const users = await User.find({
+      username: { $regex: new RegExp('^' + username, 'i') } // starts with input
+    }).select('username name email');
+
+    res.status(200).json({
+      success: true,
+      data: users,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: err.message
+    });
+  }
+};
+
+
+
+export const searchByPostTopic = async (req, res) => {
+  try {
+    const { topic } = req.query;
+
+    if (!topic || topic.trim().length < 3) {
+      return res.status(400).json({
+        success: false,
+        message: 'Topic query must be at least 3 characters',
+      });
+    }
+
+    const regex = new RegExp(topic, 'i'); // Match topic anywhere, case-insensitive
+
+    const posts = await Post.find({
+      topic: { $regex: regex }
+    });
+
+    res.status(200).json({
+      success: true,
+      count: posts.length,
+      data: posts,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error while searching posts by topic',
+      error: error.message,
+    });
+  }
+};
