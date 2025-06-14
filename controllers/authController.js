@@ -2028,3 +2028,25 @@ export const searchByPostTopic = async (req, res) => {
     });
   }
 };
+
+export const sendOTP_resetPassword = catchAsync(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ success: false, message: 'Email is required' });
+  }
+
+  // Send OTP only if email exists
+  const existingUser = await User.findOne({ email });
+  if (!existingUser) {
+    return res.status(404).json({ success: false, message: 'Email not found' });
+  }
+
+  try {
+    await sendOtpToEmail(email);
+    res.json({ success: true, message: 'OTP sent to reset password' });
+  } catch (error) {
+    console.error('Error sending OTP:', error);
+    res.status(500).json({ success: false, message: 'Failed to send OTP' });
+  }
+});
