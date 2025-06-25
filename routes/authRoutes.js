@@ -63,5 +63,7 @@ router.delete('/delete_vibe', protect, authController.deleteVibe);
 router.get('/search_user', protect, authController.searchByUsername);
 router.get('/search_topic', protect, authController.searchByPostTopic);
 router.put('/send-otp-reset-password', protect,authController.sendOTP_resetPassword);
+router.post('/get_topic_posts', protect, authController.getPostsByTopicFromBody);
+router.get('/update-spotlite', protect,authController.updateSpotlite);
 
 export default router;

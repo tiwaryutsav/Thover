@@ -14,6 +14,7 @@ import Report from '../models/Report.js';
 import Feedback from '../models/Feedback.js';
 import axios from 'axios';
 import Referral from '../models/referral.js';
+import Spotlite from '../models/Spotlite.js';
 import crypto from 'crypto'; // 
 import { v4 as uuidv4 } from 'uuid';
 
@@ -2049,4 +2050,74 @@ export const sendOTP_resetPassword = catchAsync(async (req, res) => {
     console.error('Error sending OTP:', error);
     res.status(500).json({ success: false, message: 'Failed to send OTP' });
   }
+});
+
+export const getPostsByTopicFromBody = async (req, res) => {
+  try {
+    const { topic } = req.body;
+
+    if (!topic || topic.trim().length < 3) {
+      return res.status(400).json({
+        success: false,
+        message: 'Topic must be at least 3 characters long',
+      });
+    }
+
+    const regex = new RegExp(topic, 'i');
+
+    const posts = await Post.find(
+      { topic: { $regex: regex } },
+      { _id: 1, topic: 1, description: 1 }
+    );
+
+    // Rename _id to post_id in response
+    const formattedPosts = posts.map(post => ({
+      post_id: post._id,
+      topic: post.topic,
+      description: post.description,
+    }));
+
+    res.status(200).json({
+      success: true,
+      count: formattedPosts.length,
+      data: formattedPosts,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching posts',
+      error: error.message,
+    });
+  }
+};
+
+export const updateSpotlite = catchAsync(async (req, res) => {
+  const topPost = await Post.findOne().sort({ vibeCount: -1 }).exec();
+
+  if (!topPost) {
+    return res.status(404).json({
+      success: false,
+      message: 'No posts found'
+    });
+  }
+
+  // Clear existing spotlite flags
+  await Spotlite.updateMany({}, { spotlite: false });
+
+  // Upsert the new spotlite post
+  const spotlitePost = await Spotlite.findOneAndUpdate(
+    { postId: topPost._id },
+    {
+      postId: topPost._id,
+      vibeCount: topPost.vibeCount,
+      spotlite: true
+    },
+    { upsert: true, new: true }
+  );
+
+  res.json({
+    success: true,
+    message: 'Spotlite post updated successfully',
+    data: spotlitePost
+  });
 });
