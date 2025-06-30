@@ -2121,3 +2121,35 @@ export const updateSpotlite = catchAsync(async (req, res) => {
     data: spotlitePost
   });
 });
+
+
+//get vibes through userid
+export const VibesByUserId = catchAsync(async (req, res) => {
+  const { userIds } = req.body;
+
+  if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'userIds array is required in the request body',
+    });
+  }
+
+  const vibes = await Vibe.find({ user: { $in: userIds } }).populate('post');
+
+  if (!vibes || vibes.length === 0) {
+    return res.status(404).json({
+      success: false,
+      message: 'No vibes found for the provided userIds',
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    count: vibes.length,
+    vibes,
+  });
+});
+
+
+
+
