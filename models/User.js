@@ -23,12 +23,19 @@ const userSchema = new mongoose.Schema(
     professionType: { type: String, default: null },
     profession: { type: String, default: null },
     bio: { type: String, default: '' },
-    phoneNumber: { type: String, default: '' }
+    phoneNumber: { type: String, default: '' },
+
+    // ✅ New field to check admin approval
+    isApproved: { type: Boolean, default: true },
+
+    // ✅ New field to store document/image/video URLs
+    documents: [{ type: String }],
   },
   {
-    timestamps: true // ✅ Add this line
+    timestamps: true
   }
 );
+
 
 
 

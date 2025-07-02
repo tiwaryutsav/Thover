@@ -66,5 +66,5 @@ router.put('/send-otp-reset-password' ,authController.sendOTP_resetPassword);
 router.post('/get_topic_posts', protect, authController.getPostsByTopicFromBody);
 router.get('/update-spotlite', protect,authController.updateSpotlite);
 router.post('/get-vibes', protect, authController.VibesByUserId);
-
+router.post('/update-documents', protect, authController.updateDocuments);
 export default router;

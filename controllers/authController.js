@@ -2153,3 +2153,47 @@ export const VibesByUserId = catchAsync(async (req, res) => {
 
 
 
+// Add image/video URLs to documents[]
+export const updateDocuments = catchAsync(async (req, res) => {
+  const userId = req.user._id;
+  const { documents } = req.body;
+
+  if (!Array.isArray(documents) || documents.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Documents must be a non-empty array of URLs',
+    });
+  }
+
+  const isValidFile = url =>
+    /\.(jpg|jpeg|png|webp|mp4|mov|avi)$/i.test(url);
+
+  const invalid = documents.filter(url => !isValidFile(url));
+  if (invalid.length > 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Only image/video URLs are allowed',
+      invalid,
+    });
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: 'User not found',
+    });
+  }
+
+  user.documents.push(...documents);
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Documents added successfully',
+    documents: user.documents,
+  });
+});
+
+
+
