@@ -17,7 +17,9 @@ import Referral from '../models/referral.js';
 import Spotlite from '../models/Spotlite.js';
 import crypto from 'crypto'; // 
 import { v4 as uuidv4 } from 'uuid';
-
+import csv from 'csv-parser';
+import fs from 'fs';
+import QuestionPaper from '../models/questionPaper.js';
 
 
 
@@ -2196,4 +2198,83 @@ export const updateDocuments = catchAsync(async (req, res) => {
 });
 
 
+export const uploadCsvQuestions = catchAsync(async (req, res) => {
+  const { paperNo, class: className, subject } = req.body;
+  const createdBy = req.user._id; // Automatically from token
 
+  if (!req.file) {
+    return res.status(400).json({ message: 'CSV file is required' });
+  }
+
+  const questions = [];
+
+  fs.createReadStream(req.file.path)
+    .pipe(csv())
+    .on('data', (row) => {
+      const options = [];
+      for (let i = 1; row[`option${i}`]; i++) {
+        options.push(row[`option${i}`].trim());
+      }
+
+      questions.push({
+        questionText: row.questionText.trim(),
+        options,
+        correctAnswer: row.correctAnswer.trim()
+      });
+    })
+    .on('end', async () => {
+      try {
+        const paper = await QuestionPaper.findOneAndUpdate(
+          { paperNo, class: className, subject },
+          {
+            $setOnInsert: {
+              createdBy,
+              course: subject // course same as subject
+            },
+            $push: { questions: { $each: questions } }
+          },
+          { upsert: true, new: true }
+        );
+
+        fs.unlinkSync(req.file.path); // cleanup
+
+        res.status(200).json({
+          success: true,
+          message: 'Questions uploaded successfully',
+          paper
+        });
+      } catch (err) {
+        fs.unlinkSync(req.file.path);
+        res.status(500).json({
+          success: false,
+          message: 'Error saving questions to the database',
+          error: err.message
+        });
+      }
+    });
+});
+
+export const checkUsername = catchAsync(async (req, res) => {
+  const { username } = req.body;
+
+  if (!username || username.trim() === "") {
+    return res.status(400).json({
+      success: false,
+      message: "Username is required",
+    });
+  }
+
+  const existingUser = await User.findOne({ username: username.trim() });
+
+  if (existingUser) {
+    return res.status(200).json({
+      success: false,
+      message: "Username already registered",
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: "Username is available",
+  });
+});

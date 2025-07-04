@@ -2,7 +2,8 @@ import express from 'express';
 const router = express.Router();
 import protect  from '../middleware/protect.js';
 import * as authController from '../controllers/authController.js';
-
+import multer from 'multer';
+const upload = multer({ dest: 'uploads/' });
 
 // Route to send OTP for phone number verification
 router.post('/send-otp', authController.sendOTP);
@@ -67,4 +68,11 @@ router.post('/get_topic_posts', protect, authController.getPostsByTopicFromBody)
 router.get('/update-spotlite', protect,authController.updateSpotlite);
 router.post('/get-vibes', protect, authController.VibesByUserId);
 router.post('/update-documents', protect, authController.updateDocuments);
+router.post('/check-username',  authController.checkUsername);
+router.post(
+  '/add_questions',
+  protect,
+  upload.single('file'), // 👈 parses both file and body
+  authController.uploadCsvQuestions
+);
 export default router;
