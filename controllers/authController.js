@@ -208,36 +208,65 @@ export const getUserDetails = catchAsync(async (req, res) => {
 });
 
 // Route to add a vibe
+
 export const addVibe = catchAsync(async (req, res) => {
   const { images, rating, text, imagePath, postId, topic, vibeType } = req.body;
 
   if (!req.user || !req.user._id) {
     return res.status(401).json({
       success: false,
-      message: 'Unauthorized: User information missing',
+      message: 'Unauthorized: User not found in request',
     });
   }
 
   const userId = req.user._id;
 
-  // Validate input
   if (!text || !postId) {
     return res.status(400).json({
       success: false,
-      message: 'Text and postId are required',
+      message: 'Both text and postId are required.',
     });
   }
 
-  // Optional: verify the postId exists
   const postExists = await Post.findById(postId);
   if (!postExists) {
     return res.status(404).json({
       success: false,
-      message: 'Post not found',
+      message: 'The post with the given ID was not found.',
     });
   }
 
-  const vibe = await Vibe.create({
+  // Find latest vibe by this user for this post
+  const existingVibe = await Vibe.findOne({ user: userId, post: postId }).sort({ createdAt: -1 });
+
+  const HOURS_LIMIT = 28;
+  const MS_IN_AN_HOUR = 1000 * 60 * 60;
+
+  if (existingVibe) {
+    const now = new Date();
+    const vibeAgeHours = (now - new Date(existingVibe.createdAt)) / MS_IN_AN_HOUR;
+
+    if (vibeAgeHours <= HOURS_LIMIT) {
+      // Update existing vibe
+      existingVibe.images = images || existingVibe.images;
+      existingVibe.rating = rating ?? existingVibe.rating;
+      existingVibe.text = text;
+      existingVibe.imagePath = imagePath ?? existingVibe.imagePath;
+      existingVibe.topic = topic ?? existingVibe.topic;
+      existingVibe.vibeType = vibeType ?? existingVibe.vibeType;
+
+      await existingVibe.save();
+
+      return res.status(200).json({
+        success: true,
+        message: 'Vibe updated successfully (within 28 hours).',
+        vibe: existingVibe,
+      });
+    }
+  }
+
+  // Otherwise: create a new vibe
+  const newVibe = await Vibe.create({
     images,
     rating,
     text,
@@ -245,15 +274,16 @@ export const addVibe = catchAsync(async (req, res) => {
     user: userId,
     post: postId,
     topic,
-    vibeType
+    vibeType,
   });
 
   res.status(201).json({
     success: true,
-    message: 'Vibe created and linked to post successfully',
-    vibe,
+    message: 'New vibe created successfully (past 28 hours or first time).',
+    vibe: newVibe,
   });
 });
+
 
 export const getUserid = catchAsync(async (req, res) => {
   const { token } = req.body;
