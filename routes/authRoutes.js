@@ -75,4 +75,5 @@ router.post(
   upload.single('file'), // 👈 parses both file and body
   authController.uploadCsvQuestions
 );
+router.get('/total-users', userController.getTotalUsers);
 export default router;

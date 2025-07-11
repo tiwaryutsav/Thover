@@ -2308,3 +2308,13 @@ export const checkUsername = catchAsync(async (req, res) => {
     message: "Username is available",
   });
 });
+
+//Route to count total number of users
+export const getTotalUsers = catchAsync(async (req, res) => {
+  const totalUsers = await User.countDocuments();
+
+  res.status(200).json({
+    success: true,
+    totalUsers,
+  });
+});
