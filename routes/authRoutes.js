@@ -75,5 +75,6 @@ router.post(
   upload.single('file'), // 👈 parses both file and body
   authController.uploadCsvQuestions
 );
-router.get('/total-users', userController.getTotalUsers);
+router.get('/total-users', authController.getTotalUsers);
+router.post('/check_spotlight', protect,authController.checkSpotlite);
 export default router;

@@ -2182,6 +2182,24 @@ export const VibesByUserId = catchAsync(async (req, res) => {
   });
 });
 
+export const checkSpotlite = catchAsync(async (req, res) => {
+  const { postId } = req.body;
+
+  if (!postId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Post ID is required in body',
+    });
+  }
+
+  const spotliteEntry = await Spotlite.findOne({ postId, spotlite: true });
+
+  return res.status(200).json({
+    success: true,
+    spotlite: !!spotliteEntry,
+    message: spotliteEntry ? 'Post is in spotlite' : 'Post is not in spotlite',
+  });
+});
 
 
 
