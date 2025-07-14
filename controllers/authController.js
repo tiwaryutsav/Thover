@@ -20,7 +20,8 @@ import { v4 as uuidv4 } from 'uuid';
 import csv from 'csv-parser';
 import fs from 'fs';
 import QuestionPaper from '../models/questionPaper.js';
-
+import QuestionAttempt from '../models/questionAttempt.js';
+import moment from 'moment';
 
 
 // Route to send OTP using Twilio Verify API
@@ -236,36 +237,7 @@ export const addVibe = catchAsync(async (req, res) => {
     });
   }
 
-  // Find latest vibe by this user for this post
-  const existingVibe = await Vibe.findOne({ user: userId, post: postId }).sort({ createdAt: -1 });
-
-  const HOURS_LIMIT = 28;
-  const MS_IN_AN_HOUR = 1000 * 60 * 60;
-
-  if (existingVibe) {
-    const now = new Date();
-    const vibeAgeHours = (now - new Date(existingVibe.createdAt)) / MS_IN_AN_HOUR;
-
-    if (vibeAgeHours <= HOURS_LIMIT) {
-      // Update existing vibe
-      existingVibe.images = images || existingVibe.images;
-      existingVibe.rating = rating ?? existingVibe.rating;
-      existingVibe.text = text;
-      existingVibe.imagePath = imagePath ?? existingVibe.imagePath;
-      existingVibe.topic = topic ?? existingVibe.topic;
-      existingVibe.vibeType = vibeType ?? existingVibe.vibeType;
-
-      await existingVibe.save();
-
-      return res.status(200).json({
-        success: true,
-        message: 'Vibe updated successfully (within 28 hours).',
-        vibe: existingVibe,
-      });
-    }
-  }
-
-  // Otherwise: create a new vibe
+  // Always create a new vibe (no time or frequency limit)
   const newVibe = await Vibe.create({
     images,
     rating,
@@ -279,10 +251,11 @@ export const addVibe = catchAsync(async (req, res) => {
 
   res.status(201).json({
     success: true,
-    message: 'New vibe created successfully (past 28 hours or first time).',
+    message: 'New vibe created successfully.',
     vibe: newVibe,
   });
 });
+
 
 
 export const getUserid = catchAsync(async (req, res) => {
@@ -2336,3 +2309,115 @@ export const getTotalUsers = catchAsync(async (req, res) => {
     totalUsers,
   });
 });
+
+
+// controllers/questionController.js
+
+export const getQuestionsByClassAndSubject = catchAsync(async (req, res) => {
+  const { class: className, subject } = req.body;
+  const userId = req.user._id;
+
+  if (!className || !subject) {
+    return res.status(400).json({
+      success: false,
+      message: 'Class and subject are required in the request body'
+    });
+  }
+
+  // Get current week like '2025-W28'
+  const currentWeek = moment().format('GGGG-[W]WW');
+
+  // Check if user has already received questions this week
+  const alreadyGiven = await QuestionAttempt.findOne({
+    userId,
+    class: className,
+    subject,
+    week: currentWeek
+  });
+
+  if (alreadyGiven) {
+    return res.status(403).json({
+      success: false,
+      message: 'You have already received questions for this class and subject this week.'
+    });
+  }
+
+  // Find question paper
+  const paper = await QuestionPaper.findOne({ class: className, subject });
+
+  if (!paper || paper.questions.length === 0) {
+    return res.status(404).json({
+      success: false,
+      message: 'No questions found for the given class and subject.'
+    });
+  }
+
+  // Shuffle and select 20 random questions
+  const shuffled = paper.questions.sort(() => 0.5 - Math.random());
+  const selectedQuestions = shuffled.slice(0, 20).map(q => ({
+    questionText: q.questionText,
+    options: q.options
+  }));
+
+  // Save attempt record
+  await QuestionAttempt.create({
+    userId,
+    class: className,
+    subject,
+    week: currentWeek
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Questions assigned successfully for this week.',
+    questions: selectedQuestions
+  });
+});
+
+
+export const getUserVibesForPost = catchAsync(async (req, res) => {
+  const { postId, userId } = req.body;
+
+  if (!postId || !userId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Both postId and userId are required.',
+    });
+  }
+
+  // Optional: validate ObjectId format
+  if (!mongoose.Types.ObjectId.isValid(postId) || !mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid postId or userId format.',
+    });
+  }
+
+  const postExists = await Post.findById(postId);
+  if (!postExists) {
+    return res.status(404).json({
+      success: false,
+      message: 'The post with the given ID was not found.',
+    });
+  }
+
+  // Only fetch the latest vibe
+  const latestVibe = await Vibe.findOne({ post: postId, user: userId })
+    .sort({ createdAt: -1 });
+
+  if (!latestVibe) {
+    return res.status(200).json({
+      success: true,
+      message: 'No vibes found for this user and post.',
+      vibe: null,
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Latest vibe fetched successfully.',
+    vibe: latestVibe,
+    latestVibeTime: latestVibe.createdAt,
+  });
+});
+
