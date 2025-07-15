@@ -65,7 +65,7 @@ router.get('/search_user', protect, authController.searchByUsername);
 router.get('/search_topic', protect, authController.searchByPostTopic);
 router.put('/send-otp-reset-password' ,authController.sendOTP_resetPassword);
 router.post('/get_topic_posts', protect, authController.getPostsByTopicFromBody);
-router.get('/update-spotlite', protect,authController.updateSpotlite);
+router.post('/update-spotlite', protect,authController.updateSpotlite);
 router.post('/get-vibes', protect, authController.VibesByUserId);
 router.post('/update-documents', protect, authController.updateDocuments);
 router.post('/check-username',  authController.checkUsername);

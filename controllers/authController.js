@@ -2097,24 +2097,33 @@ export const getPostsByTopicFromBody = async (req, res) => {
 };
 
 export const updateSpotlite = catchAsync(async (req, res) => {
-  const topPost = await Post.findOne().sort({ vibeCount: -1 }).exec();
+  const { postId } = req.body;
 
-  if (!topPost) {
-    return res.status(404).json({
+  if (!postId) {
+    return res.status(400).json({
       success: false,
-      message: 'No posts found'
+      message: 'postId is required in the request body'
     });
   }
 
-  // Clear existing spotlite flags
+  // Check if the post exists
+  const postExists = await Post.findById(postId);
+  if (!postExists) {
+    return res.status(404).json({
+      success: false,
+      message: 'Post not found'
+    });
+  }
+
+  // Set all Spotlite entries to false
   await Spotlite.updateMany({}, { spotlite: false });
 
-  // Upsert the new spotlite post
-  const spotlitePost = await Spotlite.findOneAndUpdate(
-    { postId: topPost._id },
+  // Upsert the Spotlite post to true
+  const updatedSpotlite = await Spotlite.findOneAndUpdate(
+    { postId },
     {
-      postId: topPost._id,
-      vibeCount: topPost.vibeCount,
+      postId,
+      vibeCount: postExists.vibeCount,
       spotlite: true
     },
     { upsert: true, new: true }
@@ -2123,9 +2132,10 @@ export const updateSpotlite = catchAsync(async (req, res) => {
   res.json({
     success: true,
     message: 'Spotlite post updated successfully',
-    data: spotlitePost
+    data: updatedSpotlite
   });
 });
+
 
 
 //get vibes through userid
