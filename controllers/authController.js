@@ -1,5 +1,6 @@
 import fetch from 'node-fetch';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import User from '../models/User.js';
 import { sendSMS, verifyOTP } from '../services/twilioService.js';
 import * as twilioService from '../services/twilioService.js'; // Correct the path as needed
@@ -22,6 +23,7 @@ import fs from 'fs';
 import QuestionPaper from '../models/questionPaper.js';
 import QuestionAttempt from '../models/questionAttempt.js';
 import moment from 'moment';
+import UserExam from '../models/User_exam.js';
 
 
 // Route to send OTP using Twilio Verify API
@@ -481,50 +483,6 @@ export const getVibesByPostId = catchAsync(async (req, res) => {
   });
 });
 
-//Add route to add Profile pic
-// controllers/userController.js
-// export const addProfilePic = catchAsync(async (req, res) => {
-//   const { imageUrl, imagePath } = req.body; // ✅ properly extract both
-
-//   if (!req.user || !req.user._id) {
-//     return res.status(401).json({
-//       success: false,
-//       message: 'Unauthorized: User information missing',
-//     });
-//   }
-
-//   if (!imageUrl && !imagePath) {
-//     return res.status(400).json({
-//       success: false,
-//       message: 'Either imageUrl or imagePath is required',
-//     });
-//   }
-
-//   const user = await User.findById(req.user._id);
-//   if (!user) {
-//     return res.status(404).json({
-//       success: false,
-//       message: 'User not found',
-//     });
-//   }
-
-//   // Set the profile picture (only if not already set)
-//   if (!user.profile_pic) {
-//     user.profile_pic = imageUrl || imagePath; // ✅ prioritize imageUrl if both
-//     await user.save();
-
-//     return res.status(201).json({
-//       success: true,
-//       message: 'Profile picture added successfully',
-//       profile_pic: user.profile_pic,
-//     });
-//   } else {
-//     return res.status(400).json({
-//       success: false,
-//       message: 'Profile picture already exists. Use update route if needed.',
-//     });
-//   }
-// });
 
 //update profile pic
 export const addUpdateProfilePic = catchAsync(async (req, res) => {
@@ -2428,6 +2386,99 @@ export const getUserVibesForPost = catchAsync(async (req, res) => {
     message: 'Latest vibe fetched successfully.',
     vibe: latestVibe,
     latestVibeTime: latestVibe.createdAt,
+  });
+});
+
+
+//Route for register 
+
+
+export const sendOTP_email_alt = catchAsync(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email is required',
+    });
+  }
+
+  // ❌ Block OTP if user already exists
+  const existingUser = await UserExam.findOne({ email });
+  if (existingUser) {
+    return res.status(409).json({
+      success: false,
+      message: 'Email is already registered. Cannot send OTP.',
+    });
+  }
+
+  // ✅ Send OTP if email not registered
+  try {
+    await sendOtpToEmail(email);
+    res.status(200).json({
+      success: true,
+      message: 'OTP sent to email successfully',
+    });
+  } catch (error) {
+    console.error('Error sending OTP:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send OTP',
+    });
+  }
+});
+
+export const register_email_exam = catchAsync(async (req, res) => {
+  const { email, otp, userData } = req.body;
+
+  if (!email || !otp || !userData) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email, OTP, and user data are required'
+    });
+  }
+
+  // ✅ Verify OTP
+  const result = await verifyOtp(email, otp);
+  if (!result.success) {
+    return res.status(401).json({
+      success: false,
+      message: result.message
+    });
+  }
+
+  // 🔍 Check if user already exists
+  const existingUser = await UserExam.findOne({ email: userData.email });
+  if (existingUser) {
+    return res.status(409).json({
+      success: false,
+      message: 'Email already registered'
+    });
+  }
+
+  // 🔐 Hash password
+  const hashedPassword = await bcrypt.hash(userData.password, 10);
+
+  // 👤 Create new user
+  const newUser = await UserExam.create({
+    name: userData.name,
+    email: userData.email,
+    password: hashedPassword,
+    age: userData.age
+  });
+
+  // 🔑 Generate JWT token
+  const token = jwt.sign(
+    { id: newUser._id, email: newUser.email },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+  );
+
+  res.json({
+    success: true,
+    message: 'Registration successful',
+    userId: newUser._id,
+    token
   });
 });
 

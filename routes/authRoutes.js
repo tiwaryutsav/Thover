@@ -79,4 +79,6 @@ router.get('/total-users', authController.getTotalUsers);
 router.post('/check_spotlight', protect,authController.checkSpotlite);
 router.post('/get_questions', protect,authController.getQuestionsByClassAndSubject);
 router.post('/get-user-vibes', protect,authController.getUserVibesForPost);
+router.post('/send-otp-alt', authController.sendOTP_email_alt);
+router.post('/sign_up', authController.register_email_exam);
 export default router;
