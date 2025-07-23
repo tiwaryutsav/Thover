@@ -2547,6 +2547,48 @@ export const submitLaunchPadForm = catchAsync(async (req, res) => {
 });
 
 
+export const getAllLaunchPads = catchAsync(async (req, res) => {
+  const launchPads = await LaunchPad.find();
+
+  res.status(200).json({
+    success: true,
+    data: launchPads,
+  });
+});
+
+
+export const approveLaunchPad = catchAsync(async (req, res) => {
+  const { launchPadId } = req.body;
+  const userId = req.user?._id; // Comes from your auth middleware
+
+  if (!launchPadId) {
+    return res.status(400).json({ success: false, message: 'LaunchPad ID is required.' });
+  }
+
+  const launchPad = await LaunchPad.findOne({ _id: launchPadId, userId });
+
+  if (!launchPad) {
+    return res.status(404).json({ success: false, message: 'LaunchPad not found for this user.' });
+  }
+
+  if (launchPad.status === 'Approved') {
+    return res.status(200).json({
+      success: false,
+      message: 'Already approved.',
+      data: launchPad,
+    });
+  }
+
+  launchPad.status = 'Approved';
+  await launchPad.save();
+
+  return res.status(200).json({
+    success: true,
+    message: 'LaunchPad successfully approved.',
+    data: launchPad,
+  });
+});
+
 
 
 
