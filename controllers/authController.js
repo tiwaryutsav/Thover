@@ -24,6 +24,7 @@ import QuestionPaper from '../models/questionPaper.js';
 import QuestionAttempt from '../models/questionAttempt.js';
 import moment from 'moment';
 import UserExam from '../models/User_exam.js';
+import LaunchPad from '../models/LaunchPad.js';
 
 
 // Route to send OTP using Twilio Verify API
@@ -2481,4 +2482,71 @@ export const register_email_exam = catchAsync(async (req, res) => {
     token
   });
 });
+
+export const submitLaunchPadForm = catchAsync(async (req, res) => {
+  const {
+    startupName,
+    founderName,
+    industry,
+    startupIdea,
+    uniqueSellingPoint,
+    email,
+    whatsappNumber,
+    payment,
+    userId // ✅ Accepting userId optionally from req.body
+  } = req.body;
+
+  // Validate required fields
+  if (
+    !startupName ||
+    !founderName ||
+    !industry ||
+    !startupIdea ||
+    !uniqueSellingPoint ||
+    !email ||
+    !whatsappNumber
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: 'All required fields must be filled.'
+    });
+  }
+
+  // Validate word count
+  const wordCount = startupIdea.trim().split(/\s+/).length;
+  if (wordCount < 10) {
+    return res.status(400).json({
+      success: false,
+      message: 'Startup idea must be at least 10 words.'
+    });
+  }
+
+  // ✅ Always include userId — even if null
+  const entry = await LaunchPad.create({
+    startupName,
+    founderName,
+    industry,
+    startupIdea,
+    uniqueSellingPoint,
+    email,
+    whatsappNumber,
+    payment: payment ?? false,
+    userId: userId ?? null // << key change: if not passed, store null
+  });
+
+  res.status(201).json({
+    success: true,
+    message: 'Application submitted successfully.',
+    data: {
+      id: entry._id,
+      startupName: entry.startupName,
+      founderName: entry.founderName,
+      status: entry.status
+    }
+  });
+});
+
+
+
+
 

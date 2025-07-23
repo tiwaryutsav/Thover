@@ -81,4 +81,5 @@ router.post('/get_questions', protect,authController.getQuestionsByClassAndSubje
 router.post('/get-user-vibes', protect,authController.getUserVibesForPost);
 router.post('/send-otp-alt', authController.sendOTP_email_alt);
 router.post('/sign_up', authController.register_email_exam);
+router.post('/submit_startup', authController.submitLaunchPadForm);
 export default router;
