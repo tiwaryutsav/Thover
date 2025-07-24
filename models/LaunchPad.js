@@ -10,13 +10,16 @@ const launchPadSchema = new mongoose.Schema(
     status: { type: String, default: 'Pending' },
     message: { type: String, default: '' },
 
-    // userId is optional now
+    // userId is optional
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
 
     // ✅ new fields
-    payment: { type: Boolean, default: false }, // defaults to false
+    payment: { type: Boolean, default: false },
     email: { type: String, required: true, trim: true },
-    whatsappNumber: { type: String, required: true, trim: true }
+    whatsappNumber: { type: String, required: true, trim: true },
+
+    // ✅ added location field
+    location: { type: String, required: true, trim: true }
   },
   {
     timestamps: true,

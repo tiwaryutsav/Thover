@@ -2493,7 +2493,8 @@ export const submitLaunchPadForm = catchAsync(async (req, res) => {
     email,
     whatsappNumber,
     payment,
-    userId // ✅ Accepting userId optionally from req.body
+    userId,    // Optional
+    location   // ✅ New field
   } = req.body;
 
   // Validate required fields
@@ -2504,11 +2505,12 @@ export const submitLaunchPadForm = catchAsync(async (req, res) => {
     !startupIdea ||
     !uniqueSellingPoint ||
     !email ||
-    !whatsappNumber
+    !whatsappNumber ||
+    !location // ✅ location is required now
   ) {
     return res.status(400).json({
       success: false,
-      message: 'All required fields must be filled.'
+      message: 'All required fields must be filled, including location.'
     });
   }
 
@@ -2521,7 +2523,6 @@ export const submitLaunchPadForm = catchAsync(async (req, res) => {
     });
   }
 
-  // ✅ Always include userId — even if null
   const entry = await LaunchPad.create({
     startupName,
     founderName,
@@ -2530,8 +2531,9 @@ export const submitLaunchPadForm = catchAsync(async (req, res) => {
     uniqueSellingPoint,
     email,
     whatsappNumber,
+    location, // ✅ Save location
     payment: payment ?? false,
-    userId: userId ?? null // << key change: if not passed, store null
+    userId: userId ?? null
   });
 
   res.status(201).json({
@@ -2545,6 +2547,7 @@ export const submitLaunchPadForm = catchAsync(async (req, res) => {
     }
   });
 });
+
 
 
 export const getAllLaunchPads = catchAsync(async (req, res) => {
