@@ -2551,13 +2551,14 @@ export const submitLaunchPadForm = catchAsync(async (req, res) => {
 
 
 export const getAllLaunchPads = catchAsync(async (req, res) => {
-  const launchPads = await LaunchPad.find();
+  const launchPads = await LaunchPad.find().sort({ createdAt: -1 });
 
   res.status(200).json({
     success: true,
     data: launchPads,
   });
 });
+
 
 
 export const approveLaunchPad = catchAsync(async (req, res) => {
