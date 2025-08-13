@@ -20,11 +20,14 @@ import crypto from 'crypto'; //
 import { v4 as uuidv4 } from 'uuid';
 import csv from 'csv-parser';
 import fs from 'fs';
-import QuestionPaper from '../models/questionPaper.js';
-import QuestionAttempt from '../models/questionAttempt.js';
 import moment from 'moment';
-import UserExam from '../models/User_exam.js';
 import LaunchPad from '../models/LaunchPad.js';
+// At the top of your authController.js
+import Otp from '../models/Otp.js'; // adjust the path if needed
+// import crypto from "crypto";
+import Wallet from '../models/Wallet.js';
+import Transaction from "../models/Transactions.js";
+import LoyaltyCard from "../models/Loyalty.js";
 
 
 // Route to send OTP using Twilio Verify API
@@ -2187,63 +2190,6 @@ export const updateDocuments = catchAsync(async (req, res) => {
   });
 });
 
-
-export const uploadCsvQuestions = catchAsync(async (req, res) => {
-  const { paperNo, class: className, subject } = req.body;
-  const createdBy = req.user._id; // Automatically from token
-
-  if (!req.file) {
-    return res.status(400).json({ message: 'CSV file is required' });
-  }
-
-  const questions = [];
-
-  fs.createReadStream(req.file.path)
-    .pipe(csv())
-    .on('data', (row) => {
-      const options = [];
-      for (let i = 1; row[`option${i}`]; i++) {
-        options.push(row[`option${i}`].trim());
-      }
-
-      questions.push({
-        questionText: row.questionText.trim(),
-        options,
-        correctAnswer: row.correctAnswer.trim()
-      });
-    })
-    .on('end', async () => {
-      try {
-        const paper = await QuestionPaper.findOneAndUpdate(
-          { paperNo, class: className, subject },
-          {
-            $setOnInsert: {
-              createdBy,
-              course: subject // course same as subject
-            },
-            $push: { questions: { $each: questions } }
-          },
-          { upsert: true, new: true }
-        );
-
-        fs.unlinkSync(req.file.path); // cleanup
-
-        res.status(200).json({
-          success: true,
-          message: 'Questions uploaded successfully',
-          paper
-        });
-      } catch (err) {
-        fs.unlinkSync(req.file.path);
-        res.status(500).json({
-          success: false,
-          message: 'Error saving questions to the database',
-          error: err.message
-        });
-      }
-    });
-});
-
 export const checkUsername = catchAsync(async (req, res) => {
   const { username } = req.body;
 
@@ -2280,208 +2226,9 @@ export const getTotalUsers = catchAsync(async (req, res) => {
 });
 
 
-// controllers/questionController.js
-
-export const getQuestionsByClassAndSubject = catchAsync(async (req, res) => {
-  const { class: className, subject } = req.body;
-  const userId = req.user._id;
-
-  if (!className || !subject) {
-    return res.status(400).json({
-      success: false,
-      message: 'Class and subject are required in the request body'
-    });
-  }
-
-  // Get current week like '2025-W28'
-  const currentWeek = moment().format('GGGG-[W]WW');
-
-  // Check if user has already received questions this week
-  const alreadyGiven = await QuestionAttempt.findOne({
-    userId,
-    class: className,
-    subject,
-    week: currentWeek
-  });
-
-  if (alreadyGiven) {
-    return res.status(403).json({
-      success: false,
-      message: 'You have already received questions for this class and subject this week.'
-    });
-  }
-
-  // Find question paper
-  const paper = await QuestionPaper.findOne({ class: className, subject });
-
-  if (!paper || paper.questions.length === 0) {
-    return res.status(404).json({
-      success: false,
-      message: 'No questions found for the given class and subject.'
-    });
-  }
-
-  // Shuffle and select 20 random questions
-  const shuffled = paper.questions.sort(() => 0.5 - Math.random());
-  const selectedQuestions = shuffled.slice(0, 20).map(q => ({
-    questionText: q.questionText,
-    options: q.options
-  }));
-
-  // Save attempt record
-  await QuestionAttempt.create({
-    userId,
-    class: className,
-    subject,
-    week: currentWeek
-  });
-
-  res.status(200).json({
-    success: true,
-    message: 'Questions assigned successfully for this week.',
-    questions: selectedQuestions
-  });
-});
 
 
-export const getUserVibesForPost = catchAsync(async (req, res) => {
-  const { postId, userId } = req.body;
 
-  if (!postId || !userId) {
-    return res.status(400).json({
-      success: false,
-      message: 'Both postId and userId are required.',
-    });
-  }
-
-  // Optional: validate ObjectId format
-  if (!mongoose.Types.ObjectId.isValid(postId) || !mongoose.Types.ObjectId.isValid(userId)) {
-    return res.status(400).json({
-      success: false,
-      message: 'Invalid postId or userId format.',
-    });
-  }
-
-  const postExists = await Post.findById(postId);
-  if (!postExists) {
-    return res.status(404).json({
-      success: false,
-      message: 'The post with the given ID was not found.',
-    });
-  }
-
-  // Only fetch the latest vibe
-  const latestVibe = await Vibe.findOne({ post: postId, user: userId })
-    .sort({ createdAt: -1 });
-
-  if (!latestVibe) {
-    return res.status(200).json({
-      success: true,
-      message: 'No vibes found for this user and post.',
-      vibe: null,
-    });
-  }
-
-  res.status(200).json({
-    success: true,
-    message: 'Latest vibe fetched successfully.',
-    vibe: latestVibe,
-    latestVibeTime: latestVibe.createdAt,
-  });
-});
-
-
-//Route for register 
-
-
-export const sendOTP_email_alt = catchAsync(async (req, res) => {
-  const { email } = req.body;
-
-  if (!email) {
-    return res.status(400).json({
-      success: false,
-      message: 'Email is required',
-    });
-  }
-
-  // ❌ Block OTP if user already exists
-  const existingUser = await UserExam.findOne({ email });
-  if (existingUser) {
-    return res.status(409).json({
-      success: false,
-      message: 'Email is already registered. Cannot send OTP.',
-    });
-  }
-
-  // ✅ Send OTP if email not registered
-  try {
-    await sendOtpToEmail(email);
-    res.status(200).json({
-      success: true,
-      message: 'OTP sent to email successfully',
-    });
-  } catch (error) {
-    console.error('Error sending OTP:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to send OTP',
-    });
-  }
-});
-
-export const register_email_exam = catchAsync(async (req, res) => {
-  const { email, otp, userData } = req.body;
-
-  if (!email || !otp || !userData) {
-    return res.status(400).json({
-      success: false,
-      message: 'Email, OTP, and user data are required'
-    });
-  }
-
-  // ✅ Verify OTP
-  const result = await verifyOtp(email, otp);
-  if (!result.success) {
-    return res.status(401).json({
-      success: false,
-      message: result.message
-    });
-  }
-
-  // 🔍 Check if user already exists
-  const existingUser = await UserExam.findOne({ email: userData.email });
-  if (existingUser) {
-    return res.status(409).json({
-      success: false,
-      message: 'Email already registered'
-    });
-  }
-
-  // 🔐 Hash password
-  const hashedPassword = await bcrypt.hash(userData.password, 10);
-
-  // 👤 Create new user
-  const newUser = await UserExam.create({
-    name: userData.name,
-    email: userData.email,
-    password: hashedPassword,
-    age: userData.age
-  });
-
-  // 🔑 Generate JWT token
-  const token = jwt.sign(
-    { id: newUser._id, email: newUser.email },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-  );
-
-  res.json({
-    success: true,
-    message: 'Registration successful',
-    userId: newUser._id,
-    token
-  });
-});
 
 export const submitLaunchPadForm = catchAsync(async (req, res) => {
   const {
@@ -2561,37 +2308,568 @@ export const getAllLaunchPads = catchAsync(async (req, res) => {
 
 
 
-export const approveLaunchPad = catchAsync(async (req, res) => {
-  const { launchPadId } = req.body;
-  const userId = req.user?._id; // Comes from your auth middleware
+export const createWallet = catchAsync(async (req, res) => {
+  const { walletName } = req.body;
 
-  if (!launchPadId) {
-    return res.status(400).json({ success: false, message: 'LaunchPad ID is required.' });
-  }
-
-  const launchPad = await LaunchPad.findOne({ _id: launchPadId, userId });
-
-  if (!launchPad) {
-    return res.status(404).json({ success: false, message: 'LaunchPad not found for this user.' });
-  }
-
-  if (launchPad.status === 'Approved') {
-    return res.status(200).json({
+  if (!walletName) {
+    return res.status(400).json({
       success: false,
-      message: 'Already approved.',
-      data: launchPad,
+      message: 'walletName is required'
     });
   }
 
-  launchPad.status = 'Approved';
-  await launchPad.save();
+  const isLoggedIn = !!req.user; // true if token was valid & user found
 
-  return res.status(200).json({
+  // If logged in, check if wallet already exists for this user
+  if (isLoggedIn) {
+    const existingWallet = await Wallet.findOne({ userId: req.user._id });
+    if (existingWallet) {
+      return res.status(400).json({
+        success: false,
+        message: 'User already has a wallet',
+        data: existingWallet
+      });
+    }
+  }
+
+  const wallet = await Wallet.create({
+    walletName,
+    userId: isLoggedIn ? req.user._id : null, // null for guests
+    isGuest: !isLoggedIn, // true if guest
+    walletType: 'personal', // default type
+    professionalWallet: false
+  });
+
+  res.status(201).json({
     success: true,
-    message: 'LaunchPad successfully approved.',
-    data: launchPad,
+    data: wallet
   });
 });
+
+
+
+function generate12DigitReferralCode() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 12; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+export const generate12DigitCodesController = catchAsync(async (req, res) => {
+  const isLoggedIn = !!req.user;
+  const userId = isLoggedIn ? req.user._id : null;
+
+  let wallet = await Wallet.findOne({ userId: userId, isGuest: !isLoggedIn });
+
+  if (!wallet) {
+    wallet = await Wallet.create({
+      walletName: isLoggedIn ? 'User Wallet' : 'Guest Wallet',
+      userId: userId,
+      isGuest: !isLoggedIn,
+      walletType: 'personal',
+      professionalWallet: false,
+    });
+  }
+
+  const codesToGenerate = isLoggedIn ? 5 : 1;
+
+  // Get current max index keys
+  let currentIndexes = Array.from(wallet.redeemCode.keys()).map(k => parseInt(k)).filter(n => !isNaN(n));
+  let startIndex = currentIndexes.length > 0 ? Math.max(...currentIndexes) + 1 : 0;
+
+  for (let i = 0; i < codesToGenerate; i++) {
+    const newCode = generate12DigitReferralCode();
+    wallet.redeemCode.set(String(startIndex + i), newCode);
+  }
+
+  await wallet.save();
+
+  res.status(200).json({
+    success: true,
+    message: `${codesToGenerate} 12-digit referral code(s) generated.`,
+    redeemCodes: Array.from(wallet.redeemCode.values()),
+  });
+});
+
+export const submitKycDetails = catchAsync(async (req, res) => {
+  const userId = req.user._id; // logged-in user id
+  const { kyc_documents } = req.body; // object with businessName, panNumber, panImageUrl
+
+  if (!kyc_documents || typeof kyc_documents !== 'object' || Array.isArray(kyc_documents)) {
+    return res.status(400).json({
+      success: false,
+      message: 'KYC documents are required and must be an object',
+    });
+  }
+
+  // Update user's KYC details
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    {
+      $set: {
+        'kyc_details.kycStatus': 'pending',
+        'kyc_details.kyc_documents': kyc_documents,
+      },
+    },
+    { new: true, runValidators: true }
+  ).select('-password');
+
+  if (!updatedUser) {
+    return res.status(404).json({
+      success: false,
+      message: 'User not found',
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'KYC details submitted successfully. Status is now pending.',
+    data: updatedUser.kyc_details,
+  });
+});
+
+
+export const reviewKyc = catchAsync(async (req, res) => {
+  const { userId, action } = req.body; // action: 'approve' or 'reject'
+
+  if (!userId || !['approve', 'reject'].includes(action)) {
+    return res.status(400).json({
+      success: false,
+      message: "Please provide valid 'userId' and 'action' ('approve' or 'reject')"
+    });
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    return res.status(404).json({ success: false, message: 'User not found' });
+  }
+
+  if (action === 'approve') {
+    user.kyc_details.kycStatus = 'approved';
+    user.isKycVerified = true;
+    await user.save();
+
+    // Update wallet type to professional
+    const wallet = await Wallet.findOne({ userId: user._id });
+    if (wallet) {
+      wallet.walletType = 'professional';
+      wallet.professionalWallet = true;
+      await wallet.save();
+    }
+  } else {
+    // reject
+    user.kyc_details.kycStatus = 'rejected';
+    user.isKycVerified = false;
+    await user.save();
+  }
+
+  res.status(200).json({
+    success: true,
+    message: `KYC ${action}d successfully`,
+    data: {
+      kycStatus: user.kyc_details.kycStatus,
+      isKycVerified: user.isKycVerified
+    }
+  });
+});
+
+
+export const buyCoin = async (req, res) => {
+  try {
+    const { walletId, coins } = req.body; // coins = number of coins user wants to buy
+    let wallet;
+
+    // 1️⃣ Logged-in user (token available)
+    if (req.user && req.user._id) {
+      wallet = await Wallet.findOne({ userId: req.user._id });
+      if (!wallet) {
+        return res.status(404).json({ success: false, message: "Wallet not found for logged-in user" });
+      }
+    }
+    // 2️⃣ Guest user (walletId must be passed)
+    else {
+      if (!walletId) {
+        return res.status(400).json({ success: false, message: "Wallet ID is required for guest purchase" });
+      }
+      wallet = await Wallet.findById(walletId);
+      if (!wallet) {
+        return res.status(404).json({ success: false, message: "Wallet not found for guest user" });
+      }
+    }
+
+    // 3️⃣ Calculate amount spent (with 5% surcharge for guests)
+    let amountSpent = coins;
+    if (wallet.isGuest) {
+      amountSpent = parseFloat((coins * 1.05).toFixed(2)); // 5% extra cost for guests
+    }
+
+    // 4️⃣ Add coins to wallet
+    wallet.totalCoin += coins;
+    await wallet.save();
+
+    // 5️⃣ Record transaction
+    const transaction = await Transaction.create({
+      userId: req.user ? req.user._id : null, // null for guest
+      transactionType: "buyCoin",
+      toWallet: wallet._id,
+      coin: coins, // ✅ number of coins bought
+      amount: amountSpent, // ✅ money spent
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Coins purchased successfully",
+      coinsAdded: coins,
+      amountSpent,
+      wallet,
+      transaction,
+    });
+
+  } catch (error) {
+    console.error("Buy coin error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+
+export const sellCoins = async (req, res) => {
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ success: false, message: "Unauthorized: Please login to sell coins" });
+    }
+
+    const { accountNumber, coins } = req.body;
+
+    if (!accountNumber) {
+      return res.status(400).json({ success: false, message: "Account number is required" });
+    }
+
+    if (!coins) {
+      return res.status(400).json({ success: false, message: "Number of coins to sell is required" });
+    }
+
+    // Find wallet by userId only (ignoring accountNumber)
+    const wallet = await Wallet.findOne({ userId: req.user._id });
+
+    if (!wallet) {
+      return res.status(404).json({ success: false, message: "Wallet not found for this user" });
+    }
+
+    if (wallet.totalCoin < coins) {
+      return res.status(400).json({ success: false, message: "Insufficient coins to sell" });
+    }
+
+    // You can optionally verify accountNumber matches wallet.accountNumber here if needed
+    // e.g. if (wallet.accountNumber !== accountNumber) { ... }
+
+    // Deduct coins from wallet
+    wallet.totalCoin -= coins;
+    await wallet.save();
+
+    // Record transaction
+    const transaction = await Transaction.create({
+      userId: req.user._id,
+      transactionType: "sellCoin",
+      fromWallet: wallet._id,
+      coin: coins,
+      amount: coins,
+      createdAt: new Date(),
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Coins sold successfully",
+      coinsSold: coins,
+      amountReceived: coins,
+      wallet,
+      transaction,
+    });
+
+  } catch (error) {
+    console.error("Sell coins error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+export const transferCoins = async (req, res) => {
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ success: false, message: "Unauthorized: Please login to transfer coins" });
+    }
+
+    const { toUserId, coins, redeemCode } = req.body;
+
+    if (!toUserId || !coins || !redeemCode) {
+      return res.status(400).json({ success: false, message: "toUserId, coins, and redeemCode are required" });
+    }
+
+    // Sender's wallet - personal wallet of logged-in user
+    const fromWallet = await Wallet.findOne({ userId: req.user._id, walletType: 'personal' });
+    if (!fromWallet) {
+      return res.status(404).json({ success: false, message: "Sender personal wallet not found" });
+    }
+
+    if (fromWallet.totalCoin < coins) {
+      return res.status(400).json({ success: false, message: "Insufficient coins to transfer" });
+    }
+
+    // Recipient's professional wallet
+    const toWallet = await Wallet.findOne({ userId: toUserId, walletType: 'professional' });
+    if (!toWallet) {
+      return res.status(404).json({ success: false, message: "Recipient professional wallet not found" });
+    }
+
+    // Transfer coins
+    fromWallet.totalCoin -= coins;
+    toWallet.totalCoin += coins;
+
+    await fromWallet.save();
+    await toWallet.save();
+
+    // Save redeem code in sender wallet maps
+    const redeemIndex = Object.keys(fromWallet.redeemCode || {}).length.toString();
+    fromWallet.redeemCode.set(redeemIndex, redeemCode);
+    fromWallet.usedCode.set(redeemIndex, redeemCode);
+    await fromWallet.save();
+
+    // Record transaction
+    const transaction = await Transaction.create({
+      userId: req.user._id,
+      transactionType: "TPWallet",
+      fromWallet: fromWallet._id,
+      toWallet: toWallet._id,
+      redeemCode,
+      coin: coins,
+      createdAt: new Date(),
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Coins transferred successfully",
+      coinsTransferred: coins,
+      fromWallet,
+      toWallet,
+      transaction,
+    });
+
+  } catch (error) {
+    console.error("Transfer coins error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+function generateCode(length = 8) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let code = "";
+  for (let i = 0; i < length; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+export const createLoyaltyCard = async (req, res) => {
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: Please login to create loyalty card"
+      });
+    }
+
+    const { codeValue, expiry } = req.body;
+
+    if (codeValue == null) {
+      return res.status(400).json({
+        success: false,
+        message: "codeValue is required"
+      });
+    }
+
+    if (expiry == null || typeof expiry !== "number" || expiry <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "expiry (in months) is required and must be a positive number"
+      });
+    }
+
+    // Calculate expiryDate
+    const expiryDate = new Date();
+    expiryDate.setMonth(expiryDate.getMonth() + expiry);
+
+    // Find user's personal wallet
+    const wallet = await Wallet.findOne({
+      userId: req.user._id,
+      walletType: "personal"
+    });
+    if (!wallet) {
+      return res.status(404).json({
+        success: false,
+        message: "Wallet not found for user"
+      });
+    }
+
+    if (wallet.totalCoin < codeValue) {
+      return res.status(400).json({
+        success: false,
+        message: "Insufficient coins in wallet"
+      });
+    }
+
+    // Deduct coins
+    wallet.totalCoin -= codeValue;
+    await wallet.save();
+
+    // Generate a single loyalty code (string)
+    const loyaltyCode = generateCode(8); // e.g. "AB12CD34"
+
+    // Create loyalty card
+    const loyaltyCard = await LoyaltyCard.create({
+      walletId: wallet._id,
+      userId: req.user._id,
+      codeValue,
+      isPrivateUse: true,
+      loyaltyCode, // plain string
+      isCodeUsed: false,
+      expiryDate
+    });
+
+    // Create transaction
+    const transaction = await Transaction.create({
+      transactionType: "buyLoyaltyCard",
+      fromWallet: wallet._id,
+      userId: req.user._id,
+      toLoyaltyCard: loyaltyCard._id,
+      coin: codeValue,
+      createdAt: new Date()
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Loyalty card created successfully and coins deducted",
+      loyaltyCard,
+      transaction
+    });
+  } catch (error) {
+    console.error("Create loyalty card error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+};
+
+export const redeemLoyaltyCard = async (req, res) => {
+  try {
+    // 1. Auth check
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: Please login to redeem loyalty card"
+      });
+    }
+
+    const { loyaltyCode } = req.body;
+
+    if (!loyaltyCode) {
+      return res.status(400).json({
+        success: false,
+        message: "loyaltyCode is required"
+      });
+    }
+
+    // 2. Find loyalty card by code
+    const loyaltyCard = await LoyaltyCard.findOne({ loyaltyCode });
+    if (!loyaltyCard) {
+      return res.status(404).json({
+        success: false,
+        message: "Invalid loyalty code"
+      });
+    }
+
+    // 3. Private/public redemption rules
+    if (loyaltyCard.isPrivateUse) {
+      if (loyaltyCard.userId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: "This loyalty card is private and can only be redeemed by its creator"
+        });
+      }
+    } else {
+      if (loyaltyCard.userId.toString() === req.user._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: "This public loyalty card cannot be redeemed by its creator"
+        });
+      }
+    }
+
+    // 4. Check if already used
+    if (loyaltyCard.isCodeUsed) {
+      return res.status(400).json({
+        success: false,
+        message: "This loyalty code has already been used"
+      });
+    }
+
+    // 5. Check expiry
+    if (loyaltyCard.expiryDate < new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "This loyalty code has expired"
+      });
+    }
+
+    // 6. Find user's personal wallet
+    const wallet = await Wallet.findOne({
+      userId: req.user._id,
+      walletType: "personal"
+    });
+    if (!wallet) {
+      return res.status(404).json({
+        success: false,
+        message: "Wallet not found for user"
+      });
+    }
+
+    // 7. Add coins to wallet
+    wallet.totalCoin += loyaltyCard.codeValue;
+    await wallet.save();
+
+    // 8. Mark loyalty card as used
+    loyaltyCard.isCodeUsed = true;
+    await loyaltyCard.save();
+
+    // 9. Create redeem transaction (fromLoyaltyCard → toWallet)
+    const transaction = await Transaction.create({
+      transactionType: "redeemLoyaltyCard",
+      fromLoyaltyCard: loyaltyCard._id, // coins came from this loyalty card
+      toWallet: wallet._id,             // coins go to this wallet
+      userId: req.user._id,
+      coin: loyaltyCard.codeValue,
+      createdAt: new Date()
+    });
+
+    // 10. Return success
+    res.status(200).json({
+      success: true,
+      message: "Loyalty card redeemed successfully, coins credited back",
+      wallet,
+      transaction
+    });
+
+  } catch (error) {
+    console.error("Redeem loyalty card error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+};
+
+
+
+
 
 
 

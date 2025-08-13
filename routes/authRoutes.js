@@ -2,8 +2,11 @@ import express from 'express';
 const router = express.Router();
 import protect  from '../middleware/protect.js';
 import * as authController from '../controllers/authController.js';
+import optionalAuth from '../middleware/optionalAuth.js';
 import multer from 'multer';
+
 const upload = multer({ dest: 'uploads/' });
+// import { verifyApiKey } from '../middleware/apiAuth.js'; // ✅ new middleware
 
 // Route to send OTP for phone number verification
 router.post('/send-otp', authController.sendOTP);
@@ -69,19 +72,18 @@ router.post('/update-spotlite', protect,authController.updateSpotlite);
 router.post('/get-vibes', protect, authController.VibesByUserId);
 router.post('/update-documents', protect, authController.updateDocuments);
 router.post('/check-username',  authController.checkUsername);
-router.post(
-  '/add_questions',
-  protect,
-  upload.single('file'), // 👈 parses both file and body
-  authController.uploadCsvQuestions
-);
 router.get('/total-users', authController.getTotalUsers);
 router.post('/check_spotlight', protect,authController.checkSpotlite);
-router.post('/get_questions', protect,authController.getQuestionsByClassAndSubject);
-router.post('/get-user-vibes', protect,authController.getUserVibesForPost);
-router.post('/send-otp-alt', authController.sendOTP_email_alt);
-router.post('/sign_up', authController.register_email_exam);
+// router.post('/get-user-vibes', protect,authController.getUserVibesForPost);
 router.post('/submit_startup', authController.submitLaunchPadForm);
 router.get('/all_startup', authController.getAllLaunchPads);
-router.patch('/approve', authController.approveLaunchPad);
+router.post('/create-wallet', optionalAuth,authController.createWallet);
+router.post('/create-codes', optionalAuth, authController.generate12DigitCodesController);
+router.post('/submit-kyc', protect, authController.submitKycDetails);
+router.post('/review-kyc', protect,  authController.reviewKyc);
+router.post('/coins-buy', optionalAuth, authController.buyCoin);
+router.post('/coins-sell', protect, authController.sellCoins);
+router.post('/transfer-coin', protect, authController.transferCoins);
+router.post('/buy-loyalty', protect, authController.createLoyaltyCard);
+router.post('/redeem-loyalty', protect, authController.redeemLoyaltyCard);
 export default router;
