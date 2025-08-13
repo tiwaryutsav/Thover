@@ -2599,13 +2599,13 @@ export const transferCoins = async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized: Please login to transfer coins" });
     }
 
-    const { toUserId, coins, redeemCode } = req.body;
+    const { toWalletId, coins, redeemCode } = req.body;
 
-    if (!toUserId || !coins || !redeemCode) {
-      return res.status(400).json({ success: false, message: "toUserId, coins, and redeemCode are required" });
+    if (!toWalletId || !coins || !redeemCode) {
+      return res.status(400).json({ success: false, message: "toWalletId, coins, and redeemCode are required" });
     }
 
-    // Sender's wallet - personal wallet of logged-in user
+    // Sender's personal wallet
     const fromWallet = await Wallet.findOne({ userId: req.user._id, walletType: 'personal' });
     if (!fromWallet) {
       return res.status(404).json({ success: false, message: "Sender personal wallet not found" });
@@ -2615,10 +2615,10 @@ export const transferCoins = async (req, res) => {
       return res.status(400).json({ success: false, message: "Insufficient coins to transfer" });
     }
 
-    // Recipient's professional wallet
-    const toWallet = await Wallet.findOne({ userId: toUserId, walletType: 'professional' });
+    // Recipient's wallet using wallet ID
+    const toWallet = await Wallet.findById(toWalletId);
     if (!toWallet) {
-      return res.status(404).json({ success: false, message: "Recipient professional wallet not found" });
+      return res.status(404).json({ success: false, message: "Recipient wallet not found" });
     }
 
     // Transfer coins
@@ -2628,7 +2628,7 @@ export const transferCoins = async (req, res) => {
     await fromWallet.save();
     await toWallet.save();
 
-    // Save redeem code in sender wallet maps
+    // Save redeem code in sender wallet
     const redeemIndex = Object.keys(fromWallet.redeemCode || {}).length.toString();
     fromWallet.redeemCode.set(redeemIndex, redeemCode);
     fromWallet.usedCode.set(redeemIndex, redeemCode);
@@ -2659,6 +2659,7 @@ export const transferCoins = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
 
 function generateCode(length = 8) {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
