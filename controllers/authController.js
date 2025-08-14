@@ -2363,6 +2363,7 @@ export const generate12DigitCodesController = catchAsync(async (req, res) => {
 
   let wallet = await Wallet.findOne({ userId: userId, isGuest: !isLoggedIn });
 
+  // Create wallet if not found
   if (!wallet) {
     wallet = await Wallet.create({
       walletName: isLoggedIn ? 'User Wallet' : 'Guest Wallet',
@@ -2370,15 +2371,26 @@ export const generate12DigitCodesController = catchAsync(async (req, res) => {
       isGuest: !isLoggedIn,
       walletType: 'personal',
       professionalWallet: false,
+      redeemCode: {}, // empty map
+      usedCode: {}
     });
+  }
+
+  // Ensure redeemCode is always a Map
+  if (!(wallet.redeemCode instanceof Map)) {
+    wallet.redeemCode = new Map(Object.entries(wallet.redeemCode || {}));
   }
 
   const codesToGenerate = isLoggedIn ? 5 : 1;
 
-  // Get current max index keys
-  let currentIndexes = Array.from(wallet.redeemCode.keys()).map(k => parseInt(k)).filter(n => !isNaN(n));
+  // Find current highest index
+  let currentIndexes = Array.from(wallet.redeemCode.keys())
+    .map(k => parseInt(k))
+    .filter(n => !isNaN(n));
+
   let startIndex = currentIndexes.length > 0 ? Math.max(...currentIndexes) + 1 : 0;
 
+  // Add new codes
   for (let i = 0; i < codesToGenerate; i++) {
     const newCode = generate12DigitReferralCode();
     wallet.redeemCode.set(String(startIndex + i), newCode);
@@ -2389,18 +2401,20 @@ export const generate12DigitCodesController = catchAsync(async (req, res) => {
   res.status(200).json({
     success: true,
     message: `${codesToGenerate} 12-digit referral code(s) generated.`,
-    redeemCodes: Array.from(wallet.redeemCode.values()),
+    redeemCodes: Array.from(wallet.redeemCode.values())
   });
 });
 
+
 export const submitKycDetails = catchAsync(async (req, res) => {
   const userId = req.user._id; // logged-in user id
-  const { kyc_documents } = req.body; // object with businessName, panNumber, panImageUrl
+  const { kyc_documents } = req.body; // array of objects
 
-  if (!kyc_documents || typeof kyc_documents !== 'object' || Array.isArray(kyc_documents)) {
+  // Validate that kyc_documents is a non-empty array
+  if (!Array.isArray(kyc_documents) || kyc_documents.length === 0) {
     return res.status(400).json({
       success: false,
-      message: 'KYC documents are required and must be an object',
+      message: 'KYC documents are required and must be a non-empty array',
     });
   }
 
@@ -2410,7 +2424,7 @@ export const submitKycDetails = catchAsync(async (req, res) => {
     {
       $set: {
         'kyc_details.kycStatus': 'pending',
-        'kyc_details.kyc_documents': kyc_documents,
+        'kyc_details.kyc_documents': kyc_documents, // store as array
       },
     },
     { new: true, runValidators: true }
@@ -2429,6 +2443,7 @@ export const submitKycDetails = catchAsync(async (req, res) => {
     data: updatedUser.kyc_details,
   });
 });
+
 
 
 export const reviewKyc = catchAsync(async (req, res) => {
@@ -2867,6 +2882,154 @@ export const redeemLoyaltyCard = async (req, res) => {
     });
   }
 };
+
+export const generateWalletApiKey = catchAsync(async (req, res) => {
+  if (!req.user || !req.user._id) {
+    return res.status(401).json({
+      success: false,
+      message: 'Unauthorized: Please log in'
+    });
+  }
+
+  // Find user's wallet
+  const wallet = await Wallet.findOne({ userId: req.user._id });
+  if (!wallet) {
+    return res.status(404).json({
+      success: false,
+      message: 'Wallet not found for user'
+    });
+  }
+
+  // Generate new API key
+  const newApiKey = crypto.randomBytes(32).toString('hex');
+
+  wallet.apiKey = newApiKey;
+  await wallet.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'API key generated successfully',
+    apiKey: newApiKey
+  });
+});
+
+
+
+export const transferCoinsWithApiKey = async (req, res) => {
+  try {
+    const apiKey = req.headers['x-api-key']; // Receiver wallet API key
+    const { coins, redeemCode } = req.body;  // Redeem code from sender wallet
+
+    // 1. Basic validation
+    if (!apiKey || !coins || !redeemCode) {
+      return res.status(400).json({
+        success: false,
+        message: "apiKey, coins and redeemCode are required"
+      });
+    }
+
+    // 2. Find receiver wallet by apiKey
+    const receiverWallet = await Wallet.findOne({ apiKey });
+    if (!receiverWallet) {
+      return res.status(404).json({
+        success: false,
+        message: "Receiver wallet not found for apiKey"
+      });
+    }
+
+    // 3. Find sender wallet by redeemCode (handles Maps & plain objects)
+    const allWallets = await Wallet.find();
+    const senderWallet = allWallets.find(wallet => {
+      const codes = wallet.redeemCode instanceof Map
+        ? Array.from(wallet.redeemCode.values())
+        : Object.values(wallet.redeemCode || {});
+
+      return codes.some(code =>
+        typeof code === "string" &&
+        code.trim().toUpperCase() === redeemCode.trim().toUpperCase()
+      );
+    });
+
+    if (!senderWallet) {
+      return res.status(404).json({
+        success: false,
+        message: "Sender wallet not found for redeem code"
+      });
+    }
+
+    // 4. Check sender's coin balance
+    if (senderWallet.totalCoin < coins) {
+      return res.status(400).json({
+        success: false,
+        message: "Insufficient coins"
+      });
+    }
+
+    // 5. Transfer coins
+    senderWallet.totalCoin -= coins;
+    receiverWallet.totalCoin += coins;
+
+    // Move used redeem code to usedCode (works for Map and plain object)
+    if (senderWallet.redeemCode instanceof Map) {
+      for (let [key, code] of senderWallet.redeemCode.entries()) {
+        if (code.trim().toUpperCase() === redeemCode.trim().toUpperCase()) {
+          if (!senderWallet.usedCode) senderWallet.usedCode = new Map();
+          senderWallet.usedCode.set(key, code);
+          senderWallet.redeemCode.delete(key);
+          senderWallet.markModified('redeemCode');
+          senderWallet.markModified('usedCode');
+          break;
+        }
+      }
+    } else {
+      for (let key in senderWallet.redeemCode) {
+        if (senderWallet.redeemCode[key].trim().toUpperCase() === redeemCode.trim().toUpperCase()) {
+          if (!senderWallet.usedCode) senderWallet.usedCode = {};
+          senderWallet.usedCode[key] = senderWallet.redeemCode[key];
+          delete senderWallet.redeemCode[key];
+          senderWallet.markModified('redeemCode');
+          senderWallet.markModified('usedCode');
+          break;
+        }
+      }
+    }
+
+    // 6. Save wallets
+    await senderWallet.save();
+    await receiverWallet.save();
+
+    // 7. Record the transaction
+    await Transaction.create({
+      userId: senderWallet.userId,
+      transactionType: "TPWallet",
+      fromWallet: senderWallet._id,
+      toWallet: receiverWallet._id,
+      redeemCode,
+      coin: coins,
+      createdAt: new Date(),
+    });
+
+    // 8. Send success response
+    res.json({
+      success: true,
+      message: "Coins transferred successfully",
+      senderWallet: {
+        userId: senderWallet.userId,
+        totalCoin: senderWallet.totalCoin
+      },
+      receiverWallet: {
+        userId: receiverWallet.userId,
+        totalCoin: receiverWallet.totalCoin
+      }
+    });
+
+  } catch (error) {
+    console.error("Transfer error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+
 
 
 

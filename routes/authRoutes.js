@@ -86,4 +86,6 @@ router.post('/coins-sell', protect, authController.sellCoins);
 router.post('/transfer-coin', protect, authController.transferCoins);
 router.post('/buy-loyalty', protect, authController.createLoyaltyCard);
 router.post('/redeem-loyalty', protect, authController.redeemLoyaltyCard);
+router.post('/generate-api-key', protect, authController.generateWalletApiKey);
+router.post('/transfer-api', authController.transferCoinsWithApiKey);
 export default router;
