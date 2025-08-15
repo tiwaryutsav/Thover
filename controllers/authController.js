@@ -3075,7 +3075,6 @@ export const getWalletDetails = async (req, res) => {
 
 export const getWalletTransactions = async (req, res) => {
   try {
-    // 1. Check authentication
     if (!req.user || !req.user._id) {
       return res.status(401).json({
         success: false,
@@ -3083,7 +3082,6 @@ export const getWalletTransactions = async (req, res) => {
       });
     }
 
-    // 2. Find wallet by logged-in user ID
     const wallet = await Wallet.findOne({ userId: req.user._id });
     if (!wallet) {
       return res.status(404).json({
@@ -3092,17 +3090,16 @@ export const getWalletTransactions = async (req, res) => {
       });
     }
 
-    // 3. Find transactions related to this wallet (only required fields)
+    // Fetch only required fields
     const transactions = await Transaction.find({
       $or: [
         { toWallet: wallet._id },
         { fromWallet: wallet._id }
       ]
     })
-      .select("_id coin createdAt") // only transaction ID, coin amount, and time
-      .sort({ createdAt: -1 }); // latest first
+      .select("_id transactionType amount createdAt") // only needed fields
+      .sort({ createdAt: -1 });
 
-    // 4. Return transactions
     res.json({
       success: true,
       count: transactions.length,
@@ -3117,6 +3114,7 @@ export const getWalletTransactions = async (req, res) => {
     });
   }
 };
+
 
 
 
