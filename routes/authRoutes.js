@@ -89,4 +89,5 @@ router.post('/redeem-loyalty', protect, authController.redeemLoyaltyCard);
 router.post('/generate-api-key', protect, authController.generateWalletApiKey);
 router.post('/transfer-api', authController.transferCoinsWithApiKey);
 router.get("/my-wallet", protect, authController.getWalletDetails);
+router.get("/my-trans", protect, authController.getWalletTransactions);
 export default router;

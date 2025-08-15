@@ -3073,6 +3073,50 @@ export const getWalletDetails = async (req, res) => {
   }
 };
 
+export const getWalletTransactions = async (req, res) => {
+  try {
+    // 1. Check authentication
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: Please login to view transactions"
+      });
+    }
+
+    // 2. Find wallet by logged-in user ID
+    const wallet = await Wallet.findOne({ userId: req.user._id });
+    if (!wallet) {
+      return res.status(404).json({
+        success: false,
+        message: "Wallet not found for this user"
+      });
+    }
+
+    // 3. Find transactions related to this wallet (only required fields)
+    const transactions = await Transaction.find({
+      $or: [
+        { toWallet: wallet._id },
+        { fromWallet: wallet._id }
+      ]
+    })
+      .select("_id coin createdAt") // only transaction ID, coin amount, and time
+      .sort({ createdAt: -1 }); // latest first
+
+    // 4. Return transactions
+    res.json({
+      success: true,
+      count: transactions.length,
+      transactions
+    });
+
+  } catch (error) {
+    console.error("Get wallet transactions error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+};
 
 
 
