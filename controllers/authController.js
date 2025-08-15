@@ -3029,6 +3029,50 @@ export const transferCoinsWithApiKey = async (req, res) => {
   }
 };
 
+export const getWalletDetails = async (req, res) => {
+  try {
+    // 1. Check authentication
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: Please login to view wallet"
+      });
+    }
+
+    // 2. Find wallet by logged-in user ID
+    const wallet = await Wallet.findOne({ userId: req.user._id });
+    if (!wallet) {
+      return res.status(404).json({
+        success: false,
+        message: "Wallet not found for this user"
+      });
+    }
+
+    // 3. Send wallet details
+    res.json({
+      success: true,
+      wallet: {
+        walletId: wallet._id,
+        walletName: wallet.walletName,
+        userId: wallet.userId,
+        totalCoin: wallet.totalCoin,
+        walletType: wallet.walletType,
+        professionalWallet: wallet.professionalWallet,
+        redeemCode: wallet.redeemCode,
+        usedCode: wallet.usedCode,
+        apiKey: wallet.apiKey
+      }
+    });
+
+  } catch (error) {
+    console.error("Get wallet error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+};
+
 
 
 
