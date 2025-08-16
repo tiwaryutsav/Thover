@@ -2308,102 +2308,97 @@ export const getAllLaunchPads = catchAsync(async (req, res) => {
 
 
 
-export const createWallet = catchAsync(async (req, res) => {
-  const { walletName } = req.body;
-
-  if (!walletName) {
-    return res.status(400).json({
-      success: false,
-      message: 'walletName is required'
-    });
-  }
-
-  const isLoggedIn = !!req.user; // true if token was valid & user found
-
-  // If logged in, check if wallet already exists for this user
-  if (isLoggedIn) {
-    const existingWallet = await Wallet.findOne({ userId: req.user._id });
-    if (existingWallet) {
-      return res.status(400).json({
-        success: false,
-        message: 'User already has a wallet',
-        data: existingWallet
-      });
-    }
-  }
-
-  const wallet = await Wallet.create({
-    walletName,
-    userId: isLoggedIn ? req.user._id : null, // null for guests
-    isGuest: !isLoggedIn, // true if guest
-    walletType: 'personal', // default type
-    professionalWallet: false
-  });
-
-  res.status(201).json({
-    success: true,
-    data: wallet
-  });
-});
-
-
-
-function generate12DigitReferralCode() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = '';
+function generateRandomCode() {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let result = "";
   for (let i = 0; i < 12; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  return code;
+  return result;
 }
 
-export const generate12DigitCodesController = catchAsync(async (req, res) => {
-  const isLoggedIn = !!req.user;
-  const userId = isLoggedIn ? req.user._id : null;
+export const createWallet = async (req, res) => {
+  try {
+    const { walletName } = req.body;
 
-  let wallet = await Wallet.findOne({ userId: userId, isGuest: !isLoggedIn });
+    if (!walletName) {
+      return res.status(400).json({
+        success: false,
+        message: "walletName is required"
+      });
+    }
 
-  // Create wallet if not found
-  if (!wallet) {
-    wallet = await Wallet.create({
-      walletName: isLoggedIn ? 'User Wallet' : 'Guest Wallet',
-      userId: userId,
+    const isLoggedIn = !!req.user; // true if token valid & user found
+
+    // ✅ If logged in, check if wallet already exists
+    if (isLoggedIn) {
+      let existingWallet = await Wallet.findOne({ userId: req.user._id });
+
+      if (existingWallet) {
+        // 👉 Append 5 new codes instead of rejecting
+        for (let i = 0; i < 5; i++) {
+          const nextIndex = existingWallet.redeemCode.size.toString();
+          existingWallet.redeemCode.set(nextIndex, generateRandomCode());
+        }
+
+        await existingWallet.save();
+
+        return res.status(200).json({
+          success: true,
+          message: "5 new codes added to existing wallet",
+          data: existingWallet
+        });
+      }
+    } else {
+      // ✅ If guest, check if they already have a wallet
+      let guestWallet = await Wallet.findOne({ isGuest: true, walletName });
+      if (guestWallet) {
+        return res.status(400).json({
+          success: false,
+          message: "Guest wallet already exists",
+          data: guestWallet
+        });
+      }
+    }
+
+    // ✅ If no wallet exists → create one
+    const wallet = new Wallet({
+      walletName,
+      userId: isLoggedIn ? req.user._id : null,
       isGuest: !isLoggedIn,
-      walletType: 'personal',
+      walletType: "personal",
       professionalWallet: false,
-      redeemCode: {}, // empty map
-      usedCode: {}
+      redeemCode: {}
     });
+
+    if (isLoggedIn) {
+      // Logged-in user gets 5 codes
+      for (let i = 0; i < 5; i++) {
+        wallet.redeemCode.set(i.toString(), generateRandomCode());
+      }
+    } else {
+      // Guest gets only 1 code
+      wallet.redeemCode.set("0", generateRandomCode());
+    }
+
+    await wallet.save();
+
+    return res.status(201).json({
+      success: true,
+      message: isLoggedIn ? "Wallet created with 5 codes" : "Guest wallet created with 1 code",
+      data: wallet
+    });
+
+  } catch (error) {
+    console.error("Create wallet error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
+};
 
-  // Ensure redeemCode is always a Map
-  if (!(wallet.redeemCode instanceof Map)) {
-    wallet.redeemCode = new Map(Object.entries(wallet.redeemCode || {}));
-  }
 
-  const codesToGenerate = isLoggedIn ? 5 : 1;
 
-  // Find current highest index
-  let currentIndexes = Array.from(wallet.redeemCode.keys())
-    .map(k => parseInt(k))
-    .filter(n => !isNaN(n));
 
-  let startIndex = currentIndexes.length > 0 ? Math.max(...currentIndexes) + 1 : 0;
 
-  // Add new codes
-  for (let i = 0; i < codesToGenerate; i++) {
-    const newCode = generate12DigitReferralCode();
-    wallet.redeemCode.set(String(startIndex + i), newCode);
-  }
-
-  await wallet.save();
-
-  res.status(200).json({
-    success: true,
-    message: `${codesToGenerate} 12-digit referral code(s) generated.`,
-    redeemCodes: Array.from(wallet.redeemCode.values())
-  });
-});
 
 
 export const submitKycDetails = catchAsync(async (req, res) => {
@@ -2446,49 +2441,7 @@ export const submitKycDetails = catchAsync(async (req, res) => {
 
 
 
-export const reviewKyc = catchAsync(async (req, res) => {
-  const { userId, action } = req.body; // action: 'approve' or 'reject'
 
-  if (!userId || !['approve', 'reject'].includes(action)) {
-    return res.status(400).json({
-      success: false,
-      message: "Please provide valid 'userId' and 'action' ('approve' or 'reject')"
-    });
-  }
-
-  const user = await User.findById(userId);
-  if (!user) {
-    return res.status(404).json({ success: false, message: 'User not found' });
-  }
-
-  if (action === 'approve') {
-    user.kyc_details.kycStatus = 'approved';
-    user.isKycVerified = true;
-    await user.save();
-
-    // Update wallet type to professional
-    const wallet = await Wallet.findOne({ userId: user._id });
-    if (wallet) {
-      wallet.walletType = 'professional';
-      wallet.professionalWallet = true;
-      await wallet.save();
-    }
-  } else {
-    // reject
-    user.kyc_details.kycStatus = 'rejected';
-    user.isKycVerified = false;
-    await user.save();
-  }
-
-  res.status(200).json({
-    success: true,
-    message: `KYC ${action}d successfully`,
-    data: {
-      kycStatus: user.kyc_details.kycStatus,
-      isKycVerified: user.isKycVerified
-    }
-  });
-});
 
 
 export const buyCoin = async (req, res) => {
@@ -3116,7 +3069,31 @@ export const getWalletTransactions = async (req, res) => {
 };
 
 
+export const fetchKycDetails = catchAsync(async (req, res) => {
+  const { userId } = req.body; // or query parameter if you prefer
 
+  if (!userId) {
+    return res.status(400).json({
+      success: false,
+      message: "userId is required in request body",
+    });
+  }
+
+  const user = await User.findById(userId).select('username email isKycVerified kyc_details');
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: 'User not found',
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: 'Fetched KYC details',
+    data: user,
+  });
+});
 
 
 

@@ -78,9 +78,7 @@ router.post('/check_spotlight', protect,authController.checkSpotlite);
 router.post('/submit_startup', authController.submitLaunchPadForm);
 router.get('/all_startup', authController.getAllLaunchPads);
 router.post('/create-wallet', optionalAuth,authController.createWallet);
-router.post('/create-codes', optionalAuth, authController.generate12DigitCodesController);
 router.post('/submit-kyc', protect, authController.submitKycDetails);
-router.post('/review-kyc', protect,  authController.reviewKyc);
 router.post('/coins-buy', optionalAuth, authController.buyCoin);
 router.post('/coins-sell', protect, authController.sellCoins);
 router.post('/transfer-coin', protect, authController.transferCoins);
@@ -90,4 +88,6 @@ router.post('/generate-api-key', protect, authController.generateWalletApiKey);
 router.post('/transfer-api', authController.transferCoinsWithApiKey);
 router.get("/my-wallet", protect, authController.getWalletDetails);
 router.get("/my-trans", protect, authController.getWalletTransactions);
+router.get("/kyc", protect, authController.fetchKycDetails);
+
 export default router;
