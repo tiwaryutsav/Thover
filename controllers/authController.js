@@ -3043,15 +3043,14 @@ export const getWalletTransactions = async (req, res) => {
       });
     }
 
-    // Fetch only required fields
+    // Fetch all transaction details for that wallet
     const transactions = await Transaction.find({
       $or: [
         { toWallet: wallet._id },
         { fromWallet: wallet._id }
       ]
     })
-      .select("_id transactionType amount createdAt") // only needed fields
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 });  // latest first
 
     res.json({
       success: true,
@@ -3067,6 +3066,7 @@ export const getWalletTransactions = async (req, res) => {
     });
   }
 };
+
 
 
 export const fetchKycDetails = catchAsync(async (req, res) => {
@@ -3097,7 +3097,112 @@ export const fetchKycDetails = catchAsync(async (req, res) => {
 
 
 
+export const getUserLoyaltyCards = async (req, res) => {
+  try {
+    // 1. Check if user is logged in
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: Please login to view loyalty cards"
+      });
+    }
+
+    // 2. Fetch only unused loyalty cards for this user
+    const loyaltyCards = await LoyaltyCard.find({
+      userId: req.user._id,
+      isUsed: false
+    }).sort({ createdAt: -1 }); // latest first
+
+    // 3. If no unused cards exist
+    if (!loyaltyCards || loyaltyCards.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No unused loyalty codes found for this user"
+      });
+    }
+
+    // 4. Respond with loyalty codes and card details
+    res.status(200).json({
+      success: true,
+      message: "Unused loyalty codes fetched successfully",
+      loyaltyCodes: loyaltyCards.map(card => ({
+        code: card.code,
+        createdAt: card.createdAt
+      }))
+    });
+
+  } catch (error) {
+    console.error("Fetch unused loyalty cards error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+};
 
 
 
+export const getWalletCodes = async (req, res) => {
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: Please login to view codes"
+      });
+    }
+
+    // 🔹 find wallet for this logged in user
+    const wallet = await Wallet.findOne({ userId: req.user._id }).lean();
+    if (!wallet) {
+      return res.status(404).json({
+        success: false,
+        message: "Wallet not found for this user"
+      });
+    }
+
+    // ✅ return only arrays of codes
+    const redeemCodes = Object.values(wallet.redeemCode || {});
+    const usedCodes   = Object.values(wallet.usedCode || {});
+
+    res.json({
+      success: true,
+      redeemCodes,
+      usedCodes
+    });
+
+  } catch (error) {
+    console.error("Get wallet codes error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+};
+
+
+
+
+export const getCurrentUserDetails = catchAsync(async (req, res) => {
+  // req.user is set by protect middleware
+  const user = await User.findById(req.user._id).select("username bio followers following");
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: "User not found",
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    user: {
+      username: user.username,
+      bio: user.bio,
+      followers: user.followers,
+      following: user.following,
+      followersCount: user.followers.length,
+      followingCount: user.following.length
+    }
+  });
+});
 

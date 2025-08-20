@@ -89,5 +89,8 @@ router.post('/transfer-api', authController.transferCoinsWithApiKey);
 router.get("/my-wallet", protect, authController.getWalletDetails);
 router.get("/my-trans", protect, authController.getWalletTransactions);
 router.get("/kyc", protect, authController.fetchKycDetails);
+router.get("/get-loyalty-codes", protect, authController.getUserLoyaltyCards);
+router.get("/get-wallet-codes", protect, authController.getWalletCodes);
+router.get("/get_userdata", protect, authController.getCurrentUserDetails);
 
 export default router;
