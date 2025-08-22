@@ -28,9 +28,6 @@ import Otp from '../models/Otp.js'; // adjust the path if needed
 import Wallet from '../models/Wallet.js';
 import Transaction from "../models/Transactions.js";
 import LoyaltyCard from "../models/Loyalty.js";
-import Payment from "../models/Payment.js";
-import Order from "../models/Order.js";
-import razorpayInstance from "../config/razorpay.js";
 
 // Route to send OTP using Twilio Verify API
 export const sendOTP = catchAsync(async (req, res) => {
@@ -3210,87 +3207,7 @@ export const getCurrentUserDetails = catchAsync(async (req, res) => {
 
 
 
-export const createOrder = async (req, res) => {
-  try {
-    const userId = req.user._id; // get from logged-in user
-    const { products } = req.body;
-
-    if (!products || products.length === 0) {
-      return res.status(400).json({ message: "Products are required" });
-    }
-
-    const totalAmount = products.reduce((acc, item) => acc + item.price * item.quantity, 0) * 100;
-
-    const options = {
-      amount: totalAmount,
-      currency: "INR",
-      receipt: `receipt_order_${Date.now()}`,
-    };
-
-    const razorpayOrder = await razorpayInstance.orders.create(options);
-
-    const order = new Order({
-      userId,
-      products,
-      totalAmount,
-      razorpayOrderId: razorpayOrder.id,
-      status: "pending",
-    });
-    await order.save();
-
-    const payment = new Payment({
-      userId,
-      orderId: razorpayOrder.id,
-      amount: totalAmount,
-      status: "created",
-    });
-    await payment.save();
-
-    order.payment = payment._id;
-    await order.save();
-
-    res.status(201).json({
-      success: true,
-      orderId: razorpayOrder.id,
-      amount: totalAmount,
-      currency: "INR",
-      products,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: "Something went wrong" });
-  }
-};
 
 
-export const verifyPayment = async (req, res) => {
-  try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
-    const generated_signature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(razorpay_order_id + "|" + razorpay_payment_id)
-      .digest("hex");
 
-    if (generated_signature === razorpay_signature) {
-      // Payment verified
-      const payment = await Payment.findOneAndUpdate(
-        { orderId: razorpay_order_id },
-        { paymentId: razorpay_payment_id, signature: razorpay_signature, status: "success" },
-        { new: true }
-      );
-
-      await Order.findOneAndUpdate(
-        { razorpayOrderId: razorpay_order_id },
-        { status: "paid" }
-      );
-
-      return res.status(200).json({ success: true, payment });
-    } else {
-      return res.status(400).json({ success: false, message: "Invalid signature" });
-    }
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: "Something went wrong" });
-  }
-};

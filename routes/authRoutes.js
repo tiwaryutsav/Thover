@@ -92,6 +92,6 @@ router.get("/kyc", protect, authController.fetchKycDetails);
 router.get("/get-loyalty-codes", protect, authController.getUserLoyaltyCards);
 router.get("/get-wallet-codes", protect, authController.getWalletCodes);
 router.get("/get_userdata", protect, authController.getCurrentUserDetails);
-router.post("/create-order", protect, authController.createOrder);
-router.post("/verify-order", protect, authController.verifyPayment);
+// router.post("/create-order", protect, authController.createOrder);
+// router.post("/verify-order", protect, authController.verifyPayment);
 export default router;
