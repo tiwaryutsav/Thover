@@ -3364,16 +3364,19 @@ export const getAllKycDocuments = catchAsync(async (req, res) => {
     });
   }
 
-  // Fetch all users with KYC submitted
-  const usersWithKyc = await User.find({ 'kyc_details.kyc_document': { $exists: true } })
-    .select('_id isKycVerified kyc_details');
+  // Fetch all users who have submitted KYC (here we check for panUrl as KYC document)
+  const usersWithKyc = await User.find({ 'kyc_details.panUrl': { $exists: true, $ne: null } })
+    .select('_id userId isKycVerified kyc_details');
 
   // Map to return only necessary fields
   const kycData = usersWithKyc.map(user => ({
-    userId: user._id,
+    userId: user.userId || user._id,
     isKycVerified: user.isKycVerified || false,
     kycStatus: user.kyc_details.kycStatus,
-    kycDocument: user.kyc_details.kyc_document
+    ownerName: user.kyc_details.ownerName,
+    businessName: user.kyc_details.businessName,
+    panNumber: user.kyc_details.panNumber,
+    panUrl: user.kyc_details.panUrl,
   }));
 
   res.status(200).json({
@@ -3382,6 +3385,7 @@ export const getAllKycDocuments = catchAsync(async (req, res) => {
     data: kycData,
   });
 });
+
 
 
 export const approveKycAndMakeProfessional = catchAsync(async (req, res) => {
