@@ -2,12 +2,6 @@ import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
-const kycDocumentSchema = new mongoose.Schema({
-  businessName: { type: String, required: true, trim: true },
-  panNumber: { type: String, required: true, trim: true },
-  panImageUrl: { type: String, required: true, trim: true },
-}, { _id: false });
-
 const userSchema = new mongoose.Schema(
   {
     username: { type: String, required: true, trim: true },
@@ -31,19 +25,21 @@ const userSchema = new mongoose.Schema(
     bio: { type: String, default: '' },
     phoneNumber: { type: String, default: '' },
     isKycVerified: { type: Boolean, default: false },
+    isAdmin: { type: Boolean, default: false },
 
-    // New KYC details embedded object
+    // ✅ KYC details as a single embedded object
     kyc_details: {
-      kycStatus: { type: String, default: 'Not verified' },  // KYC status field
-      kyc_documents: { type: [kycDocumentSchema], default: [] },  // Array of KYC documents
+      kycStatus: { type: String, default: 'Not verified' },
+      ownerName: { type: String, default: null },
+      businessName: { type: String, default: null },
+      panNumber: { type: String, default: null },
+      panUrl: { type: String, default: null },
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// Hash password before save
+// ✅ Hash password before save
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
 
@@ -52,7 +48,7 @@ userSchema.pre('save', async function (next) {
   next();
 });
 
-// Add userId from _id after save
+// ✅ Add userId from _id after save
 userSchema.post('save', async function (doc, next) {
   if (!doc.userId) {
     const shortId = doc._id.toString();
@@ -62,12 +58,12 @@ userSchema.post('save', async function (doc, next) {
   next();
 });
 
-// Password comparison method
+// ✅ Password comparison method
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// JWT token generation method
+// ✅ JWT token generation method
 userSchema.methods.generateAuthToken = async function () {
   const token = jwt.sign(
     { userId: this._id, username: this.username, email: this.email },

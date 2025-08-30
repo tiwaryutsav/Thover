@@ -946,36 +946,57 @@ export const setArea = async (req, res) => {
 //Route to set accunt info
 // controllers/userController.js
 
-export const setAccountInfo = async (req, res) => {
+export const setAccountInfoAndKyc = catchAsync(async (req, res) => {
   const userId = req.user._id;
-  let { accountType, professionType, profession } = req.body;
 
-  // If accountType is not provided, default to 'Personal'
-  if (!accountType) {
-    accountType = 'Personal';
+  // Destructure everything from body
+  let {
+    accountType,
+    professionType,
+    profession,
+    businessName,
+    ownerName,
+    panNumber,
+    panUrl
+  } = req.body;
+
+  // Default accountType to 'Personal' if not provided
+  if (!accountType) accountType = 'Personal';
+
+  // Find the user
+  const user = await User.findById(userId);
+  if (!user) {
+    return res.status(404).json({ success: false, message: 'User not found.' });
   }
 
-  try {
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: 'User not found.' });
+  // Update account info
+  user.accountType = accountType;
+  user.professionType = professionType || null;
+  user.profession = profession || null;
 
-    user.accountType = accountType;
-    user.professionType = professionType || null;
-    user.profession = profession || null;
-
-    await user.save();
-
-    res.json({
-      message: 'Account information updated successfully.',
-      accountType: user.accountType,
-      professionType: user.professionType,
-      profession: user.profession
-    });
-  } catch (err) {
-    console.error('Error updating account info:', err);
-    res.status(500).json({ error: 'Server error while updating account info.' });
+  // Update KYC if all fields are provided
+  if (businessName && ownerName && panNumber && panUrl) {
+    user.kyc_details = {
+      kycStatus: 'pending',
+      ownerName,
+      businessName,
+      panNumber,
+      panUrl
+    };
   }
-};
+
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Account info and KYC details updated successfully. KYC status is pending if KYC fields provided.',
+    accountType: user.accountType,
+    professionType: user.professionType,
+    profession: user.profession,
+    kycDetails: user.kyc_details || null
+  });
+});
+
 
 
 //Route to check favorite post
@@ -2399,44 +2420,52 @@ export const createWallet = async (req, res) => {
 
 
 
+// export const submitKycDetails = catchAsync(async (req, res) => {
+//   const userId = req.user._id; // logged-in user id
+//   const { businessName, ownerName, panNumber, panUrl } = req.body;
 
-export const submitKycDetails = catchAsync(async (req, res) => {
-  const userId = req.user._id; // logged-in user id
-  const { kyc_documents } = req.body; // array of objects
+//   // ✅ Validate required fields
+//   if (!businessName || !ownerName || !panNumber || !panUrl) {
+//     return res.status(400).json({
+//       success: false,
+//       message: 'All KYC fields (businessName, ownerName, panNumber, panUrl) are required',
+//     });
+//   }
 
-  // Validate that kyc_documents is a non-empty array
-  if (!Array.isArray(kyc_documents) || kyc_documents.length === 0) {
-    return res.status(400).json({
-      success: false,
-      message: 'KYC documents are required and must be a non-empty array',
-    });
-  }
+//   // ✅ Build the KYC object
+//   const kycDocument = {
+//     businessName,
+//     ownerName,
+//     panNumber,
+//     panUrl,
+//   };
 
-  // Update user's KYC details
-  const updatedUser = await User.findByIdAndUpdate(
-    userId,
-    {
-      $set: {
-        'kyc_details.kycStatus': 'pending',
-        'kyc_details.kyc_documents': kyc_documents, // store as array
-      },
-    },
-    { new: true, runValidators: true }
-  ).select('-password');
+//   // ✅ Update user's KYC details
+//   const updatedUser = await User.findByIdAndUpdate(
+//     userId,
+//     {
+//       $set: {
+//         'kyc_details.kycStatus': 'pending',
+//         'kyc_details.kyc_document': kycDocument, // store single object
+//       },
+//     },
+//     { new: true, runValidators: true }
+//   ).select('-password');
 
-  if (!updatedUser) {
-    return res.status(404).json({
-      success: false,
-      message: 'User not found',
-    });
-  }
+//   if (!updatedUser) {
+//     return res.status(404).json({
+//       success: false,
+//       message: 'User not found',
+//     });
+//   }
 
-  res.status(200).json({
-    success: true,
-    message: 'KYC details submitted successfully. Status is now pending.',
-    data: updatedUser.kyc_details,
-  });
-});
+//   res.status(200).json({
+//     success: true,
+//     message: 'KYC details submitted successfully. Status is now pending.',
+//     data: updatedUser.kyc_details,
+//   });
+// });
+
 
 
 
@@ -3205,9 +3234,197 @@ export const getCurrentUserDetails = catchAsync(async (req, res) => {
   });
 });
 
+//make admin
+export const makeUserAdmin = catchAsync(async (req, res) => {
+  const { userId } = req.body; // Only pass target user's id
+
+  // The current logged-in user
+  const currentUser = await User.findById(req.user._id);
+
+  if (!currentUser || !currentUser.isAdmin) {
+    return res.status(403).json({
+      success: false,
+      message: "Only admins can make other users admin",
+    });
+  }
+
+  // Find the target user
+  const targetUser = await User.findById(userId);
+  if (!targetUser) {
+    return res.status(404).json({
+      success: false,
+      message: "Target user not found",
+    });
+  }
+
+  // ✅ Check if target user is already an admin
+  if (targetUser.isAdmin) {
+    return res.status(400).json({
+      success: false,
+      message: `${targetUser.username} is already an admin`,
+    });
+  }
+
+  // Update the target user
+  targetUser.isAdmin = true;
+  await targetUser.save();
+
+  res.status(200).json({
+    success: true,
+    message: `${targetUser.username} is now an admin`,
+    user: {
+      id: targetUser._id,
+      username: targetUser.username,
+      isAdmin: targetUser.isAdmin,
+    },
+  });
+});
 
 
 
+export const forceMakeAdmin = catchAsync(async (req, res) => {
+  const { userId } = req.body; // Pass target userId in request body
+
+  const targetUser = await User.findById(userId);
+  if (!targetUser) {
+    return res.status(404).json({
+      success: false,
+      message: "User not found",
+    });
+  }
+
+  // Even if user never had isAdmin, Mongoose will add it now
+  targetUser.isAdmin = true;
+  await targetUser.save();
+
+  res.status(200).json({
+    success: true,
+    message: `${targetUser.username} is now an admin (forced)`,
+    user: {
+      id: targetUser._id,
+      username: targetUser.username,
+      isAdmin: targetUser.isAdmin,
+    },
+  });
+});
+
+
+export const removeUserAdmin = catchAsync(async (req, res) => {
+  const { userId } = req.body; // Target user's id
+
+  // Get the current logged-in user
+  const currentUser = await User.findById(req.user._id);
+
+  if (!currentUser || !currentUser.isAdmin) {
+    return res.status(403).json({
+      success: false,
+      message: "Only admins can remove admin rights",
+    });
+  }
+
+  // Find the target user
+  const targetUser = await User.findById(userId);
+  if (!targetUser) {
+    return res.status(404).json({
+      success: false,
+      message: "Target user not found",
+    });
+  }
+
+  // Remove admin role
+  if (!targetUser.isAdmin) {
+    return res.status(400).json({
+      success: false,
+      message: `${targetUser.username} is not an admin`,
+    });
+  }
+
+  targetUser.isAdmin = false;
+  await targetUser.save();
+
+  res.status(200).json({
+    success: true,
+    message: `${targetUser.username} is no longer an admin`,
+    user: {
+      id: targetUser._id,
+      username: targetUser.username,
+      isAdmin: targetUser.isAdmin,
+    },
+  });
+});
+
+
+export const getAllKycDocuments = catchAsync(async (req, res) => {
+  // Check if logged-in user is admin
+  const currentUser = await User.findById(req.user._id);
+  if (!currentUser || !currentUser.isAdmin) {
+    return res.status(403).json({
+      success: false,
+      message: 'Only admins can view KYC documents',
+    });
+  }
+
+  // Fetch all users with KYC submitted
+  const usersWithKyc = await User.find({ 'kyc_details.kyc_document': { $exists: true } })
+    .select('_id isKycVerified kyc_details');
+
+  // Map to return only necessary fields
+  const kycData = usersWithKyc.map(user => ({
+    userId: user._id,
+    isKycVerified: user.isKycVerified || false,
+    kycStatus: user.kyc_details.kycStatus,
+    kycDocument: user.kyc_details.kyc_document
+  }));
+
+  res.status(200).json({
+    success: true,
+    count: kycData.length,
+    data: kycData,
+  });
+});
+
+
+export const approveKycAndMakeProfessional = catchAsync(async (req, res) => {
+  const adminId = req.user._id; // currently logged-in user (admin)
+  const { userId } = req.body;   // target user to approve
+
+  // ✅ Check if logged-in user is admin
+  const adminUser = await User.findById(adminId);
+  if (!adminUser || !adminUser.isAdmin) {
+    return res.status(403).json({
+      success: false,
+      message: 'Only admins can approve KYC and update account type',
+    });
+  }
+
+  // ✅ Find the target user
+  const user = await User.findById(userId);
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: 'User not found',
+    });
+  }
+
+  // ✅ Update account type and KYC status
+  user.accountType = 'Professional';
+  user.kyc_details.kycStatus = 'approved';
+  user.isKycVerified = true;
+
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: `User ${user.username} is now a Professional and KYC is approved`,
+    data: {
+      userId: user._id,
+      accountType: user.accountType,
+      isKycVerified: user.isKycVerified,
+      kycStatus: user.kyc_details.kycStatus,
+      kycDocument: user.kyc_details.kyc_document
+    }
+  });
+});
 
 
 
