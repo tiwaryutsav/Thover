@@ -3348,14 +3348,14 @@ export const getAllKycDocuments = catchAsync(async (req, res) => {
 
 export const approveKycAndMakeProfessional = catchAsync(async (req, res) => {
   const adminId = req.user._id; // currently logged-in user (admin)
-  const { userId } = req.body;   // target user to approve
+  const { userId } = req.body;  // target user to approve
 
   // ✅ Check if logged-in user is admin
   const adminUser = await User.findById(adminId);
   if (!adminUser || !adminUser.isAdmin) {
     return res.status(403).json({
       success: false,
-      message: 'Only admins can approve KYC and update account type',
+      message: "Only admins can approve KYC and update account type",
     });
   }
 
@@ -3364,26 +3364,40 @@ export const approveKycAndMakeProfessional = catchAsync(async (req, res) => {
   if (!kycRecord) {
     return res.status(404).json({
       success: false,
-      message: 'KYC record not found for this user',
+      message: "KYC record not found for this user",
     });
   }
 
-  // ✅ Update account type and KYC status
-  kycRecord.accountType = 'Professional';
-  kycRecord.kycStatus = 'approved';
-  kycRecord.isKycVerified = true;
+  // ✅ Update User's accountType
+  const user = await User.findById(userId);
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: "User not found",
+    });
+  }
+  user.accountType = "Professional";
+  await user.save();
 
+  // ✅ Update KYC status
+  kycRecord.kycStatus = "approved";
+  kycRecord.isKycVerified = true;
   await kycRecord.save();
 
-  // ✅ Optional: fetch user's basic info for response
-  const user = await User.findById(userId);
+  // ✅ Update Wallet if exists
+  const wallet = await Wallet.findOne({ userId });
+  if (wallet) {
+    wallet.walletType = "professional";
+    wallet.professionalWallet = true;
+    await wallet.save();
+  }
 
   res.status(200).json({
     success: true,
-    message: `User ${user?.username || 'User'} is now a Professional and KYC is approved`,
+    message: `User ${user.username} is now a Professional and KYC is approved`,
     data: {
       userId: userId,
-      accountType: kycRecord.accountType,
+      accountType: user.accountType, // ✅ from User model
       isKycVerified: kycRecord.isKycVerified,
       kycStatus: kycRecord.kycStatus,
       ownerName: kycRecord.ownerName,
@@ -3391,10 +3405,19 @@ export const approveKycAndMakeProfessional = catchAsync(async (req, res) => {
       panNumber: kycRecord.panNumber,
       panUrl: kycRecord.panUrl,
       professionType: kycRecord.professionType,
-      profession: kycRecord.profession
-    }
+      profession: kycRecord.profession,
+      walletUpdated: wallet
+        ? {
+            walletId: wallet._id,
+            walletName: wallet.walletName,
+            walletType: wallet.walletType,
+            professionalWallet: wallet.professionalWallet,
+          }
+        : null,
+    },
   });
 });
+
 
 
 export const adminTakeCoins = async (req, res) => {
@@ -3570,7 +3593,6 @@ export const setAccountInfoAndKyc = catchAsync(async (req, res) => {
   const userId = req.user._id;
 
   const {
-    accountType,
     professionType,
     profession,
     businessName,
@@ -3583,13 +3605,6 @@ export const setAccountInfoAndKyc = catchAsync(async (req, res) => {
 
   if (!kyc) {
     kyc = new Kyc({ user: userId });
-  }
-
-  // ✅ Ensure accountType defaults to Personal
-  if (accountType !== undefined) {
-    kyc.accountType = accountType;
-  } else if (!kyc.accountType) {
-    kyc.accountType = "Personal";
   }
 
   if (professionType !== undefined) kyc.professionType = professionType;
@@ -3657,5 +3672,36 @@ export const searchWalletByName = catchAsync(async (req, res) => {
     success: true,
     count: matchedWallets.length,
     data: matchedWallets,
+  });
+});
+
+
+
+export const fetchAllAdmins = catchAsync(async (req, res) => {
+  const adminId = req.user._id;
+
+  // ✅ Check if logged-in user is admin
+  const adminUser = await User.findById(adminId);
+  if (!adminUser || !adminUser.isAdmin) {
+    return res.status(403).json({
+      success: false,
+      message: "Only admins can fetch the list of admins",
+    });
+  }
+
+  // ✅ Fetch all admins (only id + name/email if needed)
+  const admins = await User.find({ isAdmin: true }).select("_id username email name");
+
+  if (!admins.length) {
+    return res.status(404).json({
+      success: false,
+      message: "No admin users found",
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    count: admins.length,
+    data: admins,
   });
 });

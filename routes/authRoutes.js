@@ -102,4 +102,5 @@ router.post("/approve-kyc",protect,  authController.approveKycAndMakeProfessiona
 router.post("/admin-take",protect,authController.adminTakeCoins);
 router.post("/admin-give",protect,authController.adminGiveCoins);
 router.get("/search-wallet",protect,authController.searchWalletByName);
+router.get("/get-admin",protect,authController.fetchAllAdmins);
 export default router;

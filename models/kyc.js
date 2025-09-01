@@ -13,7 +13,6 @@ const kycSchema = new mongoose.Schema(
     panUrl: { type: String, default: null },
 
     // ✅ Profession & account type (optional fields)
-    accountType: { type: String, default: 'Personal' },
     professionType: { type: String, default: null },
     profession: { type: String, default: null },
   },
