@@ -19,22 +19,9 @@ const userSchema = new mongoose.Schema(
     country: { type: String, default: null },
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-    accountType: { type: String, default: 'Personal' },
-    professionType: { type: String, default: null },
-    profession: { type: String, default: null },
     bio: { type: String, default: '' },
     phoneNumber: { type: String, default: '' },
-    isKycVerified: { type: Boolean, default: false },
     isAdmin: { type: Boolean, default: false },
-
-    // ✅ KYC details as a single embedded object
-    kyc_details: {
-      kycStatus: { type: String, default: 'Not verified' },
-      ownerName: { type: String, default: null },
-      businessName: { type: String, default: null },
-      panNumber: { type: String, default: null },
-      panUrl: { type: String, default: null },
-    },
   },
   { timestamps: true }
 );

@@ -28,7 +28,7 @@ import Otp from '../models/Otp.js'; // adjust the path if needed
 import Wallet from '../models/Wallet.js';
 import Transaction from "../models/Transactions.js";
 import LoyaltyCard from "../models/Loyalty.js";
-
+import Kyc from "../models/kyc.js";
 // Route to send OTP using Twilio Verify API
 export const sendOTP = catchAsync(async (req, res) => {
   const { phoneNumber } = req.body;
@@ -946,56 +946,7 @@ export const setArea = async (req, res) => {
 //Route to set accunt info
 // controllers/userController.js
 
-export const setAccountInfoAndKyc = catchAsync(async (req, res) => {
-  const userId = req.user._id;
 
-  // Destructure everything from body
-  let {
-    accountType,
-    professionType,
-    profession,
-    businessName,
-    ownerName,
-    panNumber,
-    panUrl
-  } = req.body;
-
-  // Default accountType to 'Personal' if not provided
-  if (!accountType) accountType = 'Personal';
-
-  // Find the user
-  const user = await User.findById(userId);
-  if (!user) {
-    return res.status(404).json({ success: false, message: 'User not found.' });
-  }
-
-  // Update account info
-  user.accountType = accountType;
-  user.professionType = professionType || null;
-  user.profession = profession || null;
-
-  // Update KYC if all fields are provided
-  if (businessName && ownerName && panNumber && panUrl) {
-    user.kyc_details = {
-      kycStatus: 'pending',
-      ownerName,
-      businessName,
-      panNumber,
-      panUrl
-    };
-  }
-
-  await user.save();
-
-  res.status(200).json({
-    success: true,
-    message: 'Account info and KYC details updated successfully. KYC status is pending if KYC fields provided.',
-    accountType: user.accountType,
-    professionType: user.professionType,
-    profession: user.profession,
-    kycDetails: user.kyc_details || null
-  });
-});
 
 
 
@@ -3355,28 +3306,35 @@ export const removeUserAdmin = catchAsync(async (req, res) => {
 
 
 export const getAllKycDocuments = catchAsync(async (req, res) => {
-  // Check if logged-in user is admin
+  // ✅ Check if logged-in user is admin
   const currentUser = await User.findById(req.user._id);
   if (!currentUser || !currentUser.isAdmin) {
     return res.status(403).json({
       success: false,
-      message: 'Only admins can view KYC documents',
+      message: "Only admins can view KYC documents",
     });
   }
 
-  // Fetch all users who have submitted KYC (here we check for panUrl as KYC document)
-  const usersWithKyc = await User.find({ 'kyc_details.panUrl': { $exists: true, $ne: null } })
-    .select('_id userId isKycVerified kyc_details');
+  // ✅ Fetch all KYC documents where PAN is uploaded
+  const kycs = await Kyc.find({ panUrl: { $exists: true, $ne: null } })
+    .populate("user", "_id name email") // optional: fetch user info
+    .select("-__v -updatedAt"); // remove unnecessary fields
 
-  // Map to return only necessary fields
-  const kycData = usersWithKyc.map(user => ({
-    userId: user.userId || user._id,
-    isKycVerified: user.isKycVerified || false,
-    kycStatus: user.kyc_details.kycStatus,
-    ownerName: user.kyc_details.ownerName,
-    businessName: user.kyc_details.businessName,
-    panNumber: user.kyc_details.panNumber,
-    panUrl: user.kyc_details.panUrl,
+  // ✅ Return clean response
+  const kycData = kycs.map((doc) => ({
+    userId: doc.user?._id,
+    name: doc.user?.name || null,
+    email: doc.user?.email || null,
+    isKycVerified: doc.isKycVerified,
+    kycStatus: doc.kycStatus,
+    ownerName: doc.ownerName,
+    businessName: doc.businessName,
+    panNumber: doc.panNumber,
+    panUrl: doc.panUrl,
+    accountType: doc.accountType,
+    professionType: doc.professionType,
+    profession: doc.profession,
+    createdAt: doc.createdAt,
   }));
 
   res.status(200).json({
@@ -3401,31 +3359,39 @@ export const approveKycAndMakeProfessional = catchAsync(async (req, res) => {
     });
   }
 
-  // ✅ Find the target user
-  const user = await User.findById(userId);
-  if (!user) {
+  // ✅ Find the target user's KYC record
+  const kycRecord = await Kyc.findOne({ user: userId });
+  if (!kycRecord) {
     return res.status(404).json({
       success: false,
-      message: 'User not found',
+      message: 'KYC record not found for this user',
     });
   }
 
   // ✅ Update account type and KYC status
-  user.accountType = 'Professional';
-  user.kyc_details.kycStatus = 'approved';
-  user.isKycVerified = true;
+  kycRecord.accountType = 'Professional';
+  kycRecord.kycStatus = 'approved';
+  kycRecord.isKycVerified = true;
 
-  await user.save();
+  await kycRecord.save();
+
+  // ✅ Optional: fetch user's basic info for response
+  const user = await User.findById(userId);
 
   res.status(200).json({
     success: true,
-    message: `User ${user.username} is now a Professional and KYC is approved`,
+    message: `User ${user?.username || 'User'} is now a Professional and KYC is approved`,
     data: {
-      userId: user._id,
-      accountType: user.accountType,
-      isKycVerified: user.isKycVerified,
-      kycStatus: user.kyc_details.kycStatus,
-      kycDocument: user.kyc_details.kyc_document
+      userId: userId,
+      accountType: kycRecord.accountType,
+      isKycVerified: kycRecord.isKycVerified,
+      kycStatus: kycRecord.kycStatus,
+      ownerName: kycRecord.ownerName,
+      businessName: kycRecord.businessName,
+      panNumber: kycRecord.panNumber,
+      panUrl: kycRecord.panUrl,
+      professionType: kycRecord.professionType,
+      profession: kycRecord.profession
     }
   });
 });
@@ -3600,4 +3566,96 @@ export const adminGiveCoins = async (req, res) => {
   }
 };
 
+export const setAccountInfoAndKyc = catchAsync(async (req, res) => {
+  const userId = req.user._id;
 
+  const {
+    accountType,
+    professionType,
+    profession,
+    businessName,
+    ownerName,
+    panNumber,
+    panUrl,
+  } = req.body;
+
+  let kyc = await Kyc.findOne({ user: userId });
+
+  if (!kyc) {
+    kyc = new Kyc({ user: userId });
+  }
+
+  // ✅ Ensure accountType defaults to Personal
+  if (accountType !== undefined) {
+    kyc.accountType = accountType;
+  } else if (!kyc.accountType) {
+    kyc.accountType = "Personal";
+  }
+
+  if (professionType !== undefined) kyc.professionType = professionType;
+  if (profession !== undefined) kyc.profession = profession;
+
+  if (businessName && ownerName && panNumber && panUrl) {
+    kyc.kycStatus = "pending";
+    kyc.isKycVerified = false;
+    kyc.ownerName = ownerName;
+    kyc.businessName = businessName;
+    kyc.panNumber = panNumber;
+    kyc.panUrl = panUrl;
+  }
+
+  await kyc.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Account info and KYC details updated successfully.",
+    kyc,
+  });
+});
+
+
+
+//Route to seach a wallet
+
+export const searchWalletByName = catchAsync(async (req, res) => {
+  const adminId = req.user._id;
+
+  // ✅ Check admin
+  const adminUser = await User.findById(adminId);
+  if (!adminUser || !adminUser.isAdmin) {
+    return res.status(403).json({
+      success: false,
+      message: "Only admins can search wallets",
+    });
+  }
+
+  const { name } = req.query;
+  if (!name) {
+    return res.status(400).json({
+      success: false,
+      message: "Please provide a wallet name to search",
+    });
+  }
+
+  // ✅ Normalize input (remove spaces, lowercase)
+  const normalizedSearch = name.replace(/\s+/g, "").toLowerCase();
+
+  // ✅ Search wallets by normalized name
+  const wallets = await Wallet.find().select("walletName totalCoin _id");
+  const matchedWallets = wallets.filter((w) =>
+    w.walletName.replace(/\s+/g, "").toLowerCase().includes(normalizedSearch)
+  );
+
+  if (!matchedWallets.length) {
+    return res.status(404).json({
+      success: false,
+      message: "No wallets found matching this name",
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    count: matchedWallets.length,
+    data: matchedWallets,
+  });
+});
