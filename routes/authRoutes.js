@@ -99,5 +99,7 @@ router.post("/aman-admin",  authController.forceMakeAdmin);
 router.post("/remove-admin",protect,  authController.removeUserAdmin);
 router.get("/get-kyc",protect,  authController.getAllKycDocuments);
 router.post("/approve-kyc",protect,  authController.approveKycAndMakeProfessional);
+router.post("/admin-take",protect,authController.adminTakeCoins);
+router.post("/admin-give",protect,authController.adminGiveCoins);
 
 export default router;

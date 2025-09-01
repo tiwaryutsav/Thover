@@ -8,8 +8,10 @@ const transactionSchema = new mongoose.Schema(
         "TPWallet",
         "buyCoin",
         "sellCoin",
-        "buyLoyaltyCard",
-        "redeemLoyaltyCard",
+        "buyLoyaltyCode",
+        "redeemLoyaltyCode",
+        "gotCoin",   // ✅ new type
+        "sentCoin",  // ✅ new type
       ],
       required: true,
     },
@@ -28,9 +30,9 @@ const transactionSchema = new mongoose.Schema(
     // Coin Buy/Sell specific
     amount: { type: Number },
 
-    // Loyalty card specific
-    toLoyaltyCard: { type: mongoose.Schema.Types.ObjectId, ref: "LoyaltyCard" },   // for buy
-    fromLoyaltyCard: { type: mongoose.Schema.Types.ObjectId, ref: "LoyaltyCard" }, // for redeem
+    // Loyalty code specific
+    toLoyaltyCode: { type: String },   // for buy
+    fromLoyaltyCode: { type: String }, // for redeem
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );

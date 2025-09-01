@@ -3431,4 +3431,173 @@ export const approveKycAndMakeProfessional = catchAsync(async (req, res) => {
 });
 
 
+export const adminTakeCoins = async (req, res) => {
+  try {
+    const { walletName, coins } = req.body;
+
+    // ✅ check admin by isAdmin flag
+    if (!req.user || !req.user.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: Admin access only",
+      });
+    }
+
+    // ✅ find the user's wallet
+    const userWallet = await Wallet.findOne({ walletName });
+    if (!userWallet) {
+      return res.status(404).json({
+        success: false,
+        message: "Wallet not found for this user",
+      });
+    }
+
+    // ✅ check balance
+    if (userWallet.totalCoin < coins) {
+      return res.status(400).json({
+        success: false,
+        message: "Insufficient balance in user wallet",
+      });
+    }
+
+    // ✅ deduct coins from user
+    userWallet.totalCoin -= coins;
+    await userWallet.save();
+
+    // ✅ find admin's wallet
+    const adminWallet = await Wallet.findOne({ userId: req.user._id });
+    if (!adminWallet) {
+      return res.status(404).json({
+        success: false,
+        message: "Admin wallet not found",
+      });
+    }
+
+    // ✅ add coins to admin
+    adminWallet.totalCoin += coins;
+    await adminWallet.save();
+
+    // ✅ log transaction for user (sentCoin)
+    await Transaction.create({
+      transactionType: "sentCoin",
+      userId: userWallet.userId,
+      coin: coins,
+      fromWallet: userWallet._id,
+      toWallet: adminWallet._id,
+    });
+
+    // ✅ log transaction for admin (gotCoin)
+    await Transaction.create({
+      transactionType: "gotCoin",
+      userId: req.user._id,
+      coin: coins,
+      fromWallet: userWallet._id,
+      toWallet: adminWallet._id,
+    });
+
+    res.json({
+      success: true,
+      message: `Successfully transferred ${coins} coins from "${walletName}" to admin`,
+    });
+  } catch (error) {
+    console.error("Admin take coins error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+// 🔹 Admin gives coins to any user wallet
+// 🔹 Admin gives coins to any user wallet
+export const adminGiveCoins = async (req, res) => {
+  try {
+    const { walletName, coins } = req.body;
+
+    // ✅ Validate input
+    if (!walletName || !coins || coins <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Wallet name and positive coin amount are required",
+      });
+    }
+
+    // ✅ check admin by isAdmin flag
+    if (!req.user || !req.user.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: Admin access only",
+      });
+    }
+
+    // ✅ find the user's wallet
+    const userWallet = await Wallet.findOne({ walletName });
+    if (!userWallet) {
+      return res.status(404).json({
+        success: false,
+        message: "Wallet not found for this user",
+      });
+    }
+
+    // ✅ find admin's wallet
+    const adminWallet = await Wallet.findOne({ userId: req.user._id });
+    if (!adminWallet) {
+      return res.status(404).json({
+        success: false,
+        message: "Admin wallet not found",
+      });
+    }
+
+    // ✅ check if admin has enough coins
+    if (adminWallet.totalCoin < coins) {
+      return res.status(400).json({
+        success: false,
+        message: "Insufficient balance in admin wallet",
+      });
+    }
+
+    // ✅ perform transfer
+    adminWallet.totalCoin -= coins;
+    userWallet.totalCoin += coins;
+
+    // ✅ save both wallets in parallel
+    await Promise.all([adminWallet.save(), userWallet.save()]);
+
+    // ✅ log transactions (await both to ensure saved)
+    const [sentTx, gotTx] = await Promise.all([
+      Transaction.create({
+        transactionType: "sentCoin",
+        userId: req.user._id,       // admin ID
+        coin: coins,
+        fromWallet: adminWallet._id,
+        toWallet: userWallet._id,
+      }),
+      Transaction.create({
+        transactionType: "gotCoin",
+        userId: userWallet.userId,  // user ID
+        coin: coins,
+        fromWallet: adminWallet._id,
+        toWallet: userWallet._id,
+      }),
+    ]);
+
+    console.log("✅ Sent transaction:", sentTx._id);
+    console.log("✅ Got transaction:", gotTx._id);
+
+    res.json({
+      success: true,
+      message: `Successfully transferred ${coins} coins from admin to "${walletName}"`,
+      data: { sentTx, gotTx },
+    });
+  } catch (error) {
+    console.error("Admin give coins error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
 
