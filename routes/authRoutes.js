@@ -87,4 +87,6 @@ router.post("/admin-give",protect,authController.adminGiveCoins);
 router.get("/search-wallet",protect,authController.searchWalletByName);
 router.get("/get-admin",protect,authController.fetchAllAdmins);
 router.post('/account-kyc', protect, authController.setAccountInfoAndKyc);
+router.post('/create-wallet', protect, authController.createWalletForUser);
+router.get('/fetch-wallet', protect, authController.fetchWalletForUser);
 export default router;

@@ -2765,3 +2765,68 @@ export const fetchKycDetails = catchAsync(async (req, res) => {
   });
 });
 
+export const createWalletForUser = catchAsync(async (req, res) => {
+  const userId = req.user._id;
+
+  // ✅ Check if user already has a wallet
+  let wallet = await Wallet.findOne({ userId });
+  if (wallet) {
+    return res.status(400).json({
+      success: false,
+      message: "Wallet already exists for this user",
+    });
+  }
+
+  // ✅ Generate unique wallet name using username + random numbers
+  const randomSuffix = Math.floor(1000 + Math.random() * 9000); // 4-digit random number
+  const walletName = `${req.user.username}_${randomSuffix}`;
+
+  // ✅ Generate a unique API key
+  const apiKey = crypto.randomBytes(16).toString("hex");
+
+  // ✅ Generate 5 redeem codes
+  const redeemCodes = {};
+  for (let i = 1; i <= 5; i++) {
+    const code = crypto.randomBytes(6).toString("hex").toUpperCase();
+    redeemCodes[`code${i}`] = code;
+  }
+
+  // ✅ Create wallet with 49 coins
+  wallet = await Wallet.create({
+    walletName,
+    userId,
+    totalCoin: 49,
+    walletType: "personal",
+    professionalWallet: false,
+    apiKey,
+    redeemCode: redeemCodes,
+    isGuest: false,
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Wallet created successfully with 49 coins and 5 redeem codes",
+    wallet,
+  });
+});
+
+export const fetchWalletForUser = catchAsync(async (req, res) => {
+  const userId = req.user._id;
+
+  // ✅ Find wallet for the logged-in user
+  const wallet = await Wallet.findOne({ userId });
+
+  if (!wallet) {
+    return res.status(404).json({
+      success: false,
+      message: "No wallet found for this user",
+      wallet: null,
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Wallet fetched successfully",
+    wallet,
+  });
+});
