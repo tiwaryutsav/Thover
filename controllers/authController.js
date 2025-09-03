@@ -2437,8 +2437,9 @@ export const approveKycAndMakeProfessional = catchAsync(async (req, res) => {
       kycStatus: kycRecord.kycStatus,
       ownerName: kycRecord.ownerName,
       businessName: kycRecord.businessName,
-      panNumber: kycRecord.panNumber,
-      panUrl: kycRecord.panUrl,
+      document_no: kycRecord.document_no,
+      document_name: kycRecord.document_name,
+      document_url: kycRecord.document_url,
       professionType: kycRecord.professionType,
       profession: kycRecord.profession,
       walletUpdated: wallet
@@ -2632,9 +2633,26 @@ export const setAccountInfoAndKyc = catchAsync(async (req, res) => {
     profession,
     businessName,
     ownerName,
-    panNumber,
-    panUrl,
+    document_no,
+    document_name,
+    document_url,
   } = req.body;
+
+  // 🔹 Check if all required fields are present
+  if (
+    !professionType ||
+    !profession ||
+    !businessName ||
+    !ownerName ||
+    !document_no ||
+    !document_name ||
+    !document_url
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "All fields are required to submit KYC.",
+    });
+  }
 
   let kyc = await Kyc.findOne({ user: userId });
 
@@ -2642,17 +2660,18 @@ export const setAccountInfoAndKyc = catchAsync(async (req, res) => {
     kyc = new Kyc({ user: userId });
   }
 
-  if (professionType !== undefined) kyc.professionType = professionType;
-  if (profession !== undefined) kyc.profession = profession;
+  // ✅ Save all details
+  kyc.professionType = professionType;
+  kyc.profession = profession;
+  kyc.businessName = businessName;
+  kyc.ownerName = ownerName;
+  kyc.document_no = document_no;
+  kyc.document_name = document_name;
+  kyc.document_url = document_url;
 
-  if (businessName && ownerName && panNumber && panUrl) {
-    kyc.kycStatus = "pending";
-    kyc.isKycVerified = false;
-    kyc.ownerName = ownerName;
-    kyc.businessName = businessName;
-    kyc.panNumber = panNumber;
-    kyc.panUrl = panUrl;
-  }
+  // ✅ Reset KYC status
+  kyc.kycStatus = "pending";
+  kyc.isKycVerified = false;
 
   await kyc.save();
 

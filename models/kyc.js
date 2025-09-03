@@ -9,10 +9,11 @@ const kycSchema = new mongoose.Schema(
     isKycVerified: { type: Boolean, default: false }, // 🔹 moved here
     ownerName: { type: String, default: null },
     businessName: { type: String, default: null },
-    panNumber: { type: String, default: null },
-    panUrl: { type: String, default: null },
+    document_no: { type: String, default: null },
+    document_name: { type: String, default: null },
+    document_url: { type: String, default: null },
 
-    // ✅ Profession & account type (optional fields)
+    // ✅ Profession (optional fields)
     professionType: { type: String, default: null },
     profession: { type: String, default: null },
   },
