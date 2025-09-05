@@ -2350,12 +2350,12 @@ export const getAllKycDocuments = catchAsync(async (req, res) => {
     });
   }
 
-  // ✅ Fetch all KYC documents where PAN is uploaded
-  const kycs = await Kyc.find({ panUrl: { $exists: true, $ne: null } })
-    .populate("user", "_id name email") // optional: fetch user info
+  // ✅ Fetch all KYC documents (no condition → fetch all 7, 100, etc.)
+  const kycs = await Kyc.find()
+    .populate("user", "_id name email") // include user info
     .select("-__v -updatedAt"); // remove unnecessary fields
 
-  // ✅ Return clean response
+  // ✅ Format response
   const kycData = kycs.map((doc) => ({
     userId: doc.user?._id,
     name: doc.user?.name || null,
@@ -2364,11 +2364,13 @@ export const getAllKycDocuments = catchAsync(async (req, res) => {
     kycStatus: doc.kycStatus,
     ownerName: doc.ownerName,
     businessName: doc.businessName,
-    panNumber: doc.panNumber,
-    panUrl: doc.panUrl,
-    accountType: doc.accountType,
+    documentName: doc.document_name,
+    documentNumber: doc.document_no,
+    documentUrl: doc.document_url,
+    accountType: doc.accountType || null,
     professionType: doc.professionType,
     profession: doc.profession,
+    accountDetails: doc.accountDetails,
     createdAt: doc.createdAt,
   }));
 
@@ -2378,6 +2380,8 @@ export const getAllKycDocuments = catchAsync(async (req, res) => {
     data: kycData,
   });
 });
+
+
 
 
 
