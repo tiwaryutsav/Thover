@@ -23,46 +23,15 @@ const userSchema = new mongoose.Schema(
     phoneNumber: { type: String, default: '' },
     isAdmin: { type: Boolean, default: false },
     accountType: { type: String, default: 'Personal' },
+
+    // ✅ Single optional links object
+    links: {
+      linkName: { type: String, trim: true, default: null },
+      url: { type: String, trim: true, default: null },
+    },
   },
   { timestamps: true }
 );
-
-// ✅ Hash password before save
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
-
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
-});
-
-// ✅ Add userId from _id after save
-userSchema.post('save', async function (doc, next) {
-  if (!doc.userId) {
-    const shortId = doc._id.toString();
-    doc.userId = shortId;
-    await doc.save();
-  }
-  next();
-});
-
-// ✅ Password comparison method
-userSchema.methods.comparePassword = async function (candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
-};
-
-// ✅ JWT token generation method
-userSchema.methods.generateAuthToken = async function () {
-  const token = jwt.sign(
-    { userId: this._id, username: this.username, email: this.email },
-    process.env.JWT_SECRET,
-    { expiresIn: '365d' }
-  );
-
-  this.token = token;
-  await this.save();
-  return token;
-};
 
 const User = mongoose.model('User', userSchema);
 export default User;

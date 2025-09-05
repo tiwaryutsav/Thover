@@ -2766,11 +2766,11 @@ export const fetchAllAdmins = catchAsync(async (req, res) => {
 
 
 export const fetchKycDetails = catchAsync(async (req, res) => {
-  const userId = req.user._id; // ✅ logged-in user
+  const userId = req.user._id; // logged-in user
 
   // ✅ Find KYC details for this user
   const kyc = await Kyc.findOne({ user: userId }).select(
-    "kycStatus isKycVerified ownerName businessName panNumber panUrl professionType profession createdAt updatedAt"
+    "kycStatus isKycVerified ownerName businessName document_no document_name document_url professionType profession accountDetails createdAt updatedAt"
   );
 
   if (!kyc) {
@@ -2784,7 +2784,25 @@ export const fetchKycDetails = catchAsync(async (req, res) => {
   return res.status(200).json({
     success: true,
     message: "Fetched KYC details",
-    data: kyc,
+    data: {
+      kycStatus: kyc.kycStatus,
+      isKycVerified: kyc.isKycVerified,
+      ownerName: kyc.ownerName,
+      businessName: kyc.businessName,
+      document_no: kyc.document_no,
+      document_name: kyc.document_name,
+      document_url: kyc.document_url,
+      professionType: kyc.professionType,
+      profession: kyc.profession,
+      accountDetails: kyc.accountDetails || {
+        accountHolderName: null,
+        mobileNumber: null,
+        accountNumber: null,
+        ifscCode: null,
+      },
+      createdAt: kyc.createdAt,
+      updatedAt: kyc.updatedAt,
+    },
   });
 });
 
@@ -2856,15 +2874,8 @@ export const fetchWalletForUser = catchAsync(async (req, res) => {
 
 export const addAccountDetails = async (req, res) => {
   try {
-    const userId = req.user._id; // assuming user is authenticated via middleware
-    const { accountNumber, accountHolderName, ifscCode } = req.body;
-
-    if (!accountNumber || !accountHolderName || !ifscCode) {
-      return res.status(400).json({
-        success: false,
-        message: "All account details are required",
-      });
-    }
+    const userId = req.user._id; // logged-in user
+    const { accountNumber, accountHolderName, ifscCode, mobileNumber } = req.body;
 
     // Find user's KYC record
     let kyc = await Kyc.findOne({ user: userId });
@@ -2876,22 +2887,23 @@ export const addAccountDetails = async (req, res) => {
       });
     }
 
-    // Update account details
+    // ✅ Update account details (only fields provided)
     kyc.accountDetails = {
-      accountNumber,
-      accountHolderName,
-      ifscCode,
+      accountHolderName: accountHolderName || kyc.accountDetails.accountHolderName,
+      mobileNumber: mobileNumber || kyc.accountDetails.mobileNumber,
+      accountNumber: accountNumber || kyc.accountDetails.accountNumber,
+      ifscCode: ifscCode || kyc.accountDetails.ifscCode,
     };
 
     await kyc.save();
 
     res.status(200).json({
       success: true,
-      message: "Account details added successfully",
+      message: "Account details added/updated successfully",
       accountDetails: kyc.accountDetails,
     });
   } catch (error) {
-    console.error("Error adding account details:", error);
+    console.error("Error adding/updating account details:", error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -3014,15 +3026,124 @@ export const getPendingSellCoinRequests = catchAsync(async (req, res) => {
     });
   }
 
-  // ✅ Directly fetch raw transaction docs
+  // ✅ Fetch transactions with wallet + user
   const transactions = await Transaction.find({
     transactionType: "sellCoinRequest",
     status: "processing",
-  });
+  })
+    .populate("fromWallet", "walletName totalCoin")
+    .populate("userId", "_id username name"); // fetch userId + username (fallback to name if needed)
+
+  // ✅ Enrich with KYC account details
+  const enrichedTransactions = await Promise.all(
+    transactions.map(async (txn) => {
+      if (!txn.userId) {
+        return {
+          transactionDetails: {
+            transactionId: txn._id,
+            transactionType: txn.transactionType,
+            status: txn.status,
+            amount: txn.amount,
+            createdAt: txn.createdAt,
+          },
+          walletDetails: txn.fromWallet || { message: "No wallet found" },
+          userDetails: {
+            userId: null,
+            username: null,
+          },
+          accountDetails: {
+            accountHolderName: null,
+            mobileNumber: null,
+            accountNumber: null,
+            ifscCode: null,
+            message: "User not found",
+          },
+        };
+      }
+
+      const kyc = await Kyc.findOne({ user: txn.userId._id }).select(
+        "accountDetails"
+      );
+
+      return {
+        transactionDetails: {
+          transactionId: txn._id,
+          transactionType: txn.transactionType,
+          status: txn.status,
+          amount: txn.amount,
+          createdAt: txn.createdAt,
+        },
+        walletDetails: txn.fromWallet || { message: "No wallet found" },
+        userDetails: {
+          userId: txn.userId._id,
+          username: txn.userId.username || txn.userId.name, // fallback if no username field
+        },
+        accountDetails: kyc?.accountDetails || {
+          accountHolderName: null,
+          mobileNumber: null,
+          accountNumber: null,
+          ifscCode: null,
+          message: "No account details available",
+        },
+      };
+    })
+  );
 
   res.status(200).json({
     success: true,
-    count: transactions.length,
-    transactions,
+    count: enrichedTransactions.length,
+    transactions: enrichedTransactions,
   });
 });
+
+
+
+export const addUserLink = async (req, res) => {
+  try {
+    const userId = req.user._id; // logged-in user
+    const { linkName, url } = req.body;
+
+    // ✅ Validate input
+    if (!linkName || !url) {
+      return res.status(400).json({
+        success: false,
+        message: "Both linkName and url are required",
+      });
+    }
+
+    // ✅ Find the user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // ✅ Update/add link
+    user.links = { linkName, url };
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Link added/updated successfully",
+      userDetails: {
+        userId: user._id,
+        username: user.username,
+      },
+      linkDetails: user.links,
+    });
+  } catch (error) {
+    console.error("Error in addUserLink:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+
+
+
+
+

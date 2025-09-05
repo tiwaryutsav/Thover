@@ -17,10 +17,11 @@ const kycSchema = new mongoose.Schema(
     professionType: { type: String, default: null },
     profession: { type: String, default: null },
 
-    // ✅ Account details
+    // ✅ Updated Account details
     accountDetails: {
-      accountNumber: { type: String, default: null },
       accountHolderName: { type: String, default: null },
+      mobileNumber: { type: String, default: null },
+      accountNumber: { type: String, default: null },
       ifscCode: { type: String, default: null },
     },
   },
