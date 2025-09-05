@@ -6,7 +6,7 @@ const kycSchema = new mongoose.Schema(
 
     // ✅ KYC details
     kycStatus: { type: String, default: 'Not verified' },
-    isKycVerified: { type: Boolean, default: false }, // 🔹 moved here
+    isKycVerified: { type: Boolean, default: false }, 
     ownerName: { type: String, default: null },
     businessName: { type: String, default: null },
     document_no: { type: String, default: null },
@@ -16,6 +16,13 @@ const kycSchema = new mongoose.Schema(
     // ✅ Profession (optional fields)
     professionType: { type: String, default: null },
     profession: { type: String, default: null },
+
+    // ✅ Account details
+    accountDetails: {
+      accountNumber: { type: String, default: null },
+      accountHolderName: { type: String, default: null },
+      ifscCode: { type: String, default: null },
+    },
   },
   { timestamps: true }
 );
