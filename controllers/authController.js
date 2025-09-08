@@ -2979,7 +2979,7 @@ export const sellCoinRequest = async (req, res) => {
       });
     }
 
-    // ✅ Check if wallet has enough coins
+    // ✅ Optionally, check if wallet has enough coins (can keep or remove)
     if (wallet.totalCoin < Number(coins)) {
       return res.status(400).json({
         success: false,
@@ -2987,17 +2987,13 @@ export const sellCoinRequest = async (req, res) => {
       });
     }
 
-    // ✅ Deduct coins from wallet
-    wallet.totalCoin -= Number(coins);
-    await wallet.save();
-
-    // ✅ Create transaction
+    // ✅ Create transaction WITHOUT deducting coins
     const transaction = await Transaction.create({
       transactionType: "sellCoinRequest",
       userId: wallet.userId ?? null, // guest users get null
       coin: Number(coins),
       fromWallet: wallet._id,
-      status: "processing", // optional, if your schema supports status
+      status: "processing", // optional
     });
 
     return res.status(200).json({
@@ -3014,6 +3010,7 @@ export const sellCoinRequest = async (req, res) => {
     });
   }
 };
+
 
 
 
@@ -3166,7 +3163,7 @@ export const completeSellCoinRequest = catchAsync(async (req, res) => {
     });
   }
 
-  // ✅ Find and update the transaction
+  // ✅ Find the transaction
   const transaction = await Transaction.findById(transactionId);
   if (!transaction) {
     return res.status(404).json({
@@ -3175,15 +3172,38 @@ export const completeSellCoinRequest = catchAsync(async (req, res) => {
     });
   }
 
+  // ✅ Find the user's wallet
+  const wallet = await Wallet.findById(transaction.fromWallet);
+  if (!wallet) {
+    return res.status(404).json({
+      success: false,
+      message: "Wallet not found for this transaction",
+    });
+  }
+
+  // ✅ Deduct coins from the wallet
+  if (wallet.totalCoin < transaction.coin) {
+    return res.status(400).json({
+      success: false,
+      message: "Insufficient coins in wallet to complete this transaction",
+    });
+  }
+
+  wallet.totalCoin -= transaction.coin;
+  await wallet.save();
+
+  // ✅ Update transaction status
   transaction.status = "completed";
   await transaction.save();
 
   res.status(200).json({
     success: true,
-    message: "Transaction status updated to completed",
+    message: "Transaction completed and coins deducted from wallet",
     transaction,
+    wallet,
   });
 });
+
 
 
 
