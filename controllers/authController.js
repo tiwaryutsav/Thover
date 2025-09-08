@@ -2962,6 +2962,7 @@ export const sellCoinRequest = async (req, res) => {
   try {
     const { walletId, coins } = req.body;
 
+    // ✅ Validate request body
     if (!walletId || !coins) {
       return res.status(400).json({
         success: false,
@@ -2969,8 +2970,8 @@ export const sellCoinRequest = async (req, res) => {
       });
     }
 
+    // ✅ Fetch the wallet by ID
     const wallet = await Wallet.findById(walletId);
-
     if (!wallet) {
       return res.status(404).json({
         success: false,
@@ -2990,12 +2991,13 @@ export const sellCoinRequest = async (req, res) => {
     wallet.totalCoin -= Number(coins);
     await wallet.save();
 
-    // ✅ Save transaction (status auto-handled by schema for sellCoinRequest)
+    // ✅ Create transaction
     const transaction = await Transaction.create({
       transactionType: "sellCoinRequest",
-      userId: wallet.userId || null,
+      userId: wallet.userId ?? null, // guest users get null
       coin: Number(coins),
       fromWallet: wallet._id,
+      status: "processing", // optional, if your schema supports status
     });
 
     return res.status(200).json({
@@ -3006,12 +3008,13 @@ export const sellCoinRequest = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in sellCoinRequest:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Server error",
     });
   }
 };
+
 
 
 export const getPendingSellCoinRequests = catchAsync(async (req, res) => {
@@ -3143,7 +3146,44 @@ export const addUserLink = async (req, res) => {
 };
 
 
+export const completeSellCoinRequest = catchAsync(async (req, res) => {
+  const adminId = req.user._id;
 
+  // ✅ Verify admin
+  const adminUser = await User.findById(adminId);
+  if (!adminUser || !adminUser.isAdmin) {
+    return res.status(403).json({
+      success: false,
+      message: "Only admins can complete sell coin requests",
+    });
+  }
+
+  const { transactionId } = req.body;
+  if (!transactionId) {
+    return res.status(400).json({
+      success: false,
+      message: "Transaction ID is required",
+    });
+  }
+
+  // ✅ Find and update the transaction
+  const transaction = await Transaction.findById(transactionId);
+  if (!transaction) {
+    return res.status(404).json({
+      success: false,
+      message: "Transaction not found",
+    });
+  }
+
+  transaction.status = "completed";
+  await transaction.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Transaction status updated to completed",
+    transaction,
+  });
+});
 
 
 
