@@ -3205,5 +3205,105 @@ export const completeSellCoinRequest = catchAsync(async (req, res) => {
 });
 
 
+export const getAllUsers = catchAsync(async (req, res) => {
+  const adminId = req.user._id;
+
+  // ✅ Verify admin
+  const adminUser = await User.findById(adminId);
+  if (!adminUser || !adminUser.isAdmin) {
+    return res.status(403).json({
+      success: false,
+      message: "Only admins can access all user details",
+    });
+  }
+
+  // ✅ Fetch all users (exclude passwords for security)
+  const users = await User.find().select("-password");
+
+  res.status(200).json({
+    success: true,
+    message: "All users fetched successfully",
+    count: users.length,
+    users,
+  });
+});
+
+export const deletePostByAdmin = catchAsync(async (req, res) => {
+  const adminId = req.user._id;
+
+  // ✅ Verify admin
+  const adminUser = await User.findById(adminId);
+  if (!adminUser || !adminUser.isAdmin) {
+    return res.status(403).json({
+      success: false,
+      message: "Only admins can delete posts",
+    });
+  }
+
+  const { postId } = req.body;
+
+  if (!postId) {
+    return res.status(400).json({
+      success: false,
+      message: "Post ID is required",
+    });
+  }
+
+  // ✅ Find post
+  const post = await Post.findById(postId);
+  if (!post) {
+    return res.status(404).json({
+      success: false,
+      message: "Post not found",
+    });
+  }
+
+  // ✅ Delete post
+  await post.deleteOne();
+
+  res.status(200).json({
+    success: true,
+    message: "Post deleted successfully by admin",
+  });
+});
+
+export const deleteVibeByAdmin = catchAsync(async (req, res) => {
+  const adminId = req.user._id;
+
+  // ✅ Verify admin
+  const adminUser = await User.findById(adminId);
+  if (!adminUser || !adminUser.isAdmin) {
+    return res.status(403).json({
+      success: false,
+      message: "Only admins can delete vibes",
+    });
+  }
+
+  const { vibeId } = req.body;
+
+  if (!vibeId) {
+    return res.status(400).json({
+      success: false,
+      message: "Vibe ID is required",
+    });
+  }
+
+  // ✅ Find vibe
+  const vibe = await Vibe.findById(vibeId);
+  if (!vibe) {
+    return res.status(404).json({
+      success: false,
+      message: "Vibe not found",
+    });
+  }
+
+  // ✅ Delete vibe
+  await vibe.deleteOne();
+
+  res.status(200).json({
+    success: true,
+    message: "Vibe deleted successfully by admin",
+  });
+});
 
 

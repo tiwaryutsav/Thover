@@ -95,4 +95,7 @@ router.post('/sell-coin', protect, authController.sellCoinRequest);
 router.get('/get-sendcoins', protect, authController.getPendingSellCoinRequests);
 router.post('/add-links', protect, authController.addUserLink);
 router.post('/approve-sellcoin', protect, authController.completeSellCoinRequest);
+router.get("/users", protect, authController.getAllUsers);
+router.delete("/post-admin", protect, authController.deletePostByAdmin);
+router.delete("/vibe-admin", protect, authController.deleteVibeByAdmin);
 export default router;
