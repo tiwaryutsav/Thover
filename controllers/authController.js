@@ -3205,20 +3205,11 @@ export const completeSellCoinRequest = catchAsync(async (req, res) => {
 });
 
 
-export const getAllUsers = catchAsync(async (req, res) => {
-  const adminId = req.user._id;
+export const getAllUsersForLoggedIn = catchAsync(async (req, res) => {
+  const loggedInUserId = req.user._id; // already verified via auth middleware
 
-  // ✅ Verify admin
-  const adminUser = await User.findById(adminId);
-  if (!adminUser || !adminUser.isAdmin) {
-    return res.status(403).json({
-      success: false,
-      message: "Only admins can access all user details",
-    });
-  }
-
-  // ✅ Fetch all users (exclude passwords for security)
-  const users = await User.find().select("-password");
+  // ✅ Fetch all users but exclude sensitive fields
+  const users = await User.find().select("-password -__v");
 
   res.status(200).json({
     success: true,
@@ -3227,6 +3218,7 @@ export const getAllUsers = catchAsync(async (req, res) => {
     users,
   });
 });
+
 
 export const deletePostByAdmin = catchAsync(async (req, res) => {
   const adminId = req.user._id;
@@ -3266,6 +3258,7 @@ export const deletePostByAdmin = catchAsync(async (req, res) => {
     message: "Post deleted successfully by admin",
   });
 });
+
 
 export const deleteVibeByAdmin = catchAsync(async (req, res) => {
   const adminId = req.user._id;
