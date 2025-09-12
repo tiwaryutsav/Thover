@@ -30,6 +30,9 @@ import Transaction from "../models/Transactions.js";
 import LoyaltyCard from "../models/Loyalty.js";
 import Kyc from "../models/kyc.js";
 // Route to send OTP using Twilio Verify API
+
+import { encrypt, decrypt } from "../utils/cryptoUtils.js";
+
 export const sendOTP = catchAsync(async (req, res) => {
   const { phoneNumber } = req.body;
 
@@ -1353,13 +1356,29 @@ export const addFeedback = async (req, res) => {
 
 export const getAllFeedbacks = async (req, res) => {
   try {
-    const feedbacks = await Feedback.find(); // No .populate()
-    res.status(200).json({ feedbacks });
+    const adminId = req.user._id;
+
+    // ✅ Verify if logged-in user is admin
+    const adminUser = await User.findById(adminId);
+    if (!adminUser || !adminUser.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Only admins can fetch feedbacks",
+      });
+    }
+
+    // ✅ Fetch feedbacks if admin
+    const feedbacks = await Feedback.find();
+    res.status(200).json({ success: true, feedbacks });
   } catch (err) {
-    console.error('Error fetching feedbacks:', err);
-    res.status(500).json({ error: 'Server error while fetching feedbacks.' });
+    console.error("Error fetching feedbacks:", err);
+    res.status(500).json({ 
+      success: false, 
+      error: "Server error while fetching feedbacks." 
+    });
   }
 };
+
 
 //Route to update post
 export const updatePost = catchAsync(async (req, res) => {
@@ -1541,7 +1560,6 @@ export const getVibeAndAllByPostId = catchAsync(async (req, res) => {
     count: allVibes.length,
   });
 });
-
 
 
 export const sendWhatsAppOtp = catchAsync(async (req, res) => {
@@ -2407,7 +2425,7 @@ export const approveKycAndMakeProfessional = catchAsync(async (req, res) => {
     });
   }
 
-  // ✅ Update User's accountType
+  // ✅ Find and update User
   const user = await User.findById(userId);
   if (!user) {
     return res.status(404).json({
@@ -2416,6 +2434,7 @@ export const approveKycAndMakeProfessional = catchAsync(async (req, res) => {
     });
   }
   user.accountType = "Professional";
+  user.isVerified = true; // ✅ mark as verified
   await user.save();
 
   // ✅ Update KYC status
@@ -2433,10 +2452,11 @@ export const approveKycAndMakeProfessional = catchAsync(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    message: `User ${user.username} is now a Professional and KYC is approved`,
+    message: `User ${user.username} is now a Professional, Verified, and KYC is approved`,
     data: {
       userId: userId,
-      accountType: user.accountType, // ✅ from User model
+      accountType: user.accountType,      // ✅ from User model
+      isVerified: user.isVerified,        // ✅ added
       isKycVerified: kycRecord.isKycVerified,
       kycStatus: kycRecord.kycStatus,
       ownerName: kycRecord.ownerName,
@@ -2457,7 +2477,6 @@ export const approveKycAndMakeProfessional = catchAsync(async (req, res) => {
     },
   });
 });
-
 
 
 export const adminTakeCoins = async (req, res) => {
@@ -3299,4 +3318,80 @@ export const deleteVibeByAdmin = catchAsync(async (req, res) => {
   });
 });
 
+export const setMyPasskey = catchAsync(async (req, res) => {
+  const userId = req.user._id;
+  const { code, password } = req.body; // ⬅️ no time from frontend
 
+  if (!code || !password) {
+    return res.status(400).json({
+      success: false,
+      message: "code and password are required",
+    });
+  }
+
+  // 🔍 Find user
+  const user = await User.findById(userId).select("+password");
+  if (!user) {
+    return res.status(404).json({ success: false, message: "User not found" });
+  }
+
+  // 🔐 Verify provided password matches user's account password
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid password. Cannot set passkey.",
+    });
+  }
+
+  // ✅ Encrypt the code
+  const encryptedCode = encrypt(code.toString());
+
+  // ⬅️ Always update passkey + reset time
+  user.passkey = {
+    code: encryptedCode,
+    time: new Date(), // auto-save or auto-update server time
+  };
+
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Passkey saved successfully",
+    passkey: {
+      code: code, // decrypted value for confirmation (optional)
+      time: user.passkey.time,
+    },
+  });
+});
+
+export const getMyPasskey = catchAsync(async (req, res) => {
+  const userId = req.user && req.user._id;
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
+  }
+
+  const user = await User.findById(userId);
+  if (!user || !user.passkey) {
+    return res.status(404).json({ success: false, message: "Passkey not set" });
+  }
+
+  try {
+    const decryptedCode = user.passkey.code ? decrypt(user.passkey.code) : null;
+
+    return res.status(200).json({
+      success: true,
+      message: "Passkey fetched successfully",
+      passkey: {
+        code: decryptedCode,
+        time: user.passkey.time, // last updated server time
+      },
+    });
+  } catch (err) {
+    console.error("Passkey decryption error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to decrypt passkey",
+    });
+  }
+});

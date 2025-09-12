@@ -98,4 +98,6 @@ router.post('/approve-sellcoin', protect, authController.completeSellCoinRequest
 router.get("/users", protect, authController.getAllUsersForLoggedIn);
 router.delete("/admin-delete-post", protect, authController.deletePostByAdmin);
 router.delete("/admin-delete-vibes", protect, authController.deleteVibeByAdmin);
+router.post("/create-passkey", protect, authController.setMyPasskey);
+router.get("/get-passkey", protect, authController.getMyPasskey);
 export default router;

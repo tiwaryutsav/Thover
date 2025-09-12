@@ -22,6 +22,7 @@ const userSchema = new mongoose.Schema(
     bio: { type: String, default: '' },
     phoneNumber: { type: String, default: '' },
     isAdmin: { type: Boolean, default: false },
+    isVerified: { type: Boolean, default: false },
     accountType: { type: String, default: 'Personal' },
 
     // ✅ Single optional links object
@@ -29,6 +30,13 @@ const userSchema = new mongoose.Schema(
       linkName: { type: String, trim: true, default: null },
       url: { type: String, trim: true, default: null },
     },
+
+    // ✅ Passkey object
+    passkey: {
+      code: { type: String, default: null },   // 6-digit code
+      time: { type: Date, default: null },     // when it was generated
+      password: { type: String, default: null } // temporary password sent to frontend
+    }
   },
   { timestamps: true }
 );
