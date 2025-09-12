@@ -3320,7 +3320,7 @@ export const deleteVibeByAdmin = catchAsync(async (req, res) => {
 
 export const setMyPasskey = catchAsync(async (req, res) => {
   const userId = req.user._id;
-  const { code, password } = req.body; // ⬅️ no time from frontend
+  const { code, password, time } = req.body; // ⬅️ include time from frontend
 
   if (!code || !password) {
     return res.status(400).json({
@@ -3347,10 +3347,13 @@ export const setMyPasskey = catchAsync(async (req, res) => {
   // ✅ Encrypt the code
   const encryptedCode = encrypt(code.toString());
 
-  // ⬅️ Always update passkey + reset time
+  // ⬅️ Use frontend time if provided, else fallback to server time
+  const finalTime = time ? new Date(time) : new Date();
+
+  // ✅ Update passkey with code + time
   user.passkey = {
     code: encryptedCode,
-    time: new Date(), // auto-save or auto-update server time
+    time: finalTime,
   };
 
   await user.save();
@@ -3359,8 +3362,8 @@ export const setMyPasskey = catchAsync(async (req, res) => {
     success: true,
     message: "Passkey saved successfully",
     passkey: {
-      code: code, // decrypted value for confirmation (optional)
-      time: user.passkey.time,
+      code: code, // returning plain code just for confirmation
+      time: user.passkey.time, // saved time (frontend or server)
     },
   });
 });
@@ -3368,30 +3371,37 @@ export const setMyPasskey = catchAsync(async (req, res) => {
 export const getMyPasskey = catchAsync(async (req, res) => {
   const userId = req.user && req.user._id;
   if (!userId) {
-    return res.status(401).json({ success: false, message: "Unauthorized" });
+    return res.status(401).json({
+      success: false,
+      message: "Unauthorized",
+    });
   }
 
+  // 🔍 Find user
   const user = await User.findById(userId);
   if (!user || !user.passkey) {
-    return res.status(404).json({ success: false, message: "Passkey not set" });
+    return res.status(404).json({
+      success: false,
+      message: "Passkey not set yet",
+    });
   }
 
+  // ✅ Decrypt stored passkey code
+  let decryptedCode;
   try {
-    const decryptedCode = user.passkey.code ? decrypt(user.passkey.code) : null;
-
-    return res.status(200).json({
-      success: true,
-      message: "Passkey fetched successfully",
-      passkey: {
-        code: decryptedCode,
-        time: user.passkey.time, // last updated server time
-      },
-    });
+    decryptedCode = decrypt(user.passkey.code);
   } catch (err) {
-    console.error("Passkey decryption error:", err);
     return res.status(500).json({
       success: false,
-      message: "Failed to decrypt passkey",
+      message: "Error decrypting passkey",
     });
   }
+
+  res.status(200).json({
+    success: true,
+    passkey: {
+      code: decryptedCode,   // plain code (for user confirmation)
+      time: user.passkey.time, // whatever time was saved (frontend or server)
+    },
+  });
 });
