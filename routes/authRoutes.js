@@ -100,4 +100,6 @@ router.delete("/admin-delete-post", protect, authController.deletePostByAdmin);
 router.delete("/admin-delete-vibes", protect, authController.deleteVibeByAdmin);
 router.post("/create-passkey", protect, authController.setMyPasskey);
 router.get("/get-passkey", protect, authController.getMyPasskey);
+router.post("/count-vibes", protect, authController.countVibesInPost);
+router.post("/create-notification", protect, authController.createNotification);
 export default router;

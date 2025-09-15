@@ -3407,3 +3407,50 @@ export const getMyPasskey = catchAsync(async (req, res) => {
 });
 
 
+
+export const countVibesInPost = catchAsync(async (req, res) => {
+  const { postId } = req.body;
+
+  if (!postId) {
+    return res.status(400).json({
+      success: false,
+      message: "Post ID is required in body",
+    });
+  }
+
+  // ✅ Count vibes linked to this post
+  const vibeCount = await Vibe.countDocuments({ post: postId });
+
+  res.status(200).json({
+    success: true,
+    postId,
+    totalVibes: vibeCount,
+  });
+});
+
+
+export const createNotification = catchAsync(async (req, res) => {
+  const { userId, title, body, postId, vibeId, otherUserId } = req.body;
+
+  if (!userId || !title || !body) {
+    return res.status(400).json({
+      success: false,
+      message: "userId, title, and body are required",
+    });
+  }
+
+  const notification = await Notification.create({
+    userId,
+    title,
+    body,
+    postId: postId || null,
+    vibeId: vibeId || null,
+    otherUserId: otherUserId || null,
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Notification created successfully",
+    notification,
+  });
+});
