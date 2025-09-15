@@ -1191,7 +1191,7 @@ export const register_email = catchAsync(async (req, res) => {
 
   const newUser = await User.create({
     username: userData.username,
-    password: userData.password,  // यहाँ password plain ही रहेगा
+    password: userData.password,
     email: userData.email,
     name: userData.name,
   });
