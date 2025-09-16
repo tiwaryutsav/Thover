@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema(
     email: { type: String, unique: true },
     name: { type: String, required: true, trim: true },
     token: { type: String },
-    userId: { type: String, unique: true, trim: true },
+    userId: { type: String, trim: true },
     profile_pic: { type: String },
     area: { type: String, default: null },
     latitude: { type: Number, default: null },

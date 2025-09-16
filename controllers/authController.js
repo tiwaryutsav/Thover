@@ -1169,15 +1169,15 @@ export const register_email = catchAsync(async (req, res) => {
   if (!email || !otp || !userData) {
     return res.status(400).json({
       success: false,
-      message: "Email, OTP, and user data are required",
+      message: 'Email, OTP, and user data are required'
     });
   }
 
-  const result = await verifyOtp(email, otp); // ensure async if verifyOtp is async
+  const result = verifyOtp(email, otp);
   if (!result.success) {
     return res.status(401).json({
       success: false,
-      message: result.message,
+      message: result.message
     });
   }
 
@@ -1185,29 +1185,34 @@ export const register_email = catchAsync(async (req, res) => {
   if (existingUser) {
     return res.status(409).json({
       success: false,
-      message: "Email already registered",
+      message: 'Email already registered'
     });
   }
 
-  // ✅ Auto-generate userId (so it never stays null)
+  // ✅ Create new user
   const newUser = await User.create({
     username: userData.username,
-    password: userData.password, // plain password → hashed automatically by pre('save')
+    password: userData.password,  // plain, will be hashed by pre-save hook
     email: userData.email,
     name: userData.name,
-    userId: new mongoose.Types.ObjectId().toString(),
   });
 
-  // Generate token
+  // ✅ Set userId = _id
+  newUser.userId = newUser._id.toString();
+  await newUser.save();
+
+  // ✅ Generate token
   const token = await newUser.generateAuthToken();
 
-  return res.status(201).json({
+  res.json({
     success: true,
-    message: "Registration successful",
-    userId: newUser.userId, // return userId
-    token,
+    message: 'Registration successful',
+    userId: newUser.userId, // same as _id
+    token
   });
 });
+
+
 
 //To create report
 export const addPostReport = catchAsync(async (req, res) => {
