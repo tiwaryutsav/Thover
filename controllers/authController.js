@@ -3041,7 +3041,6 @@ export const sellCoinRequest = async (req, res) => {
 
 
 
-
 export const getPendingSellCoinRequests = catchAsync(async (req, res) => {
   const adminId = req.user._id;
 
@@ -3461,3 +3460,34 @@ export const createNotification = catchAsync(async (req, res) => {
     notification,
   });
 });
+
+
+export const getFavoritePosts = catchAsync(async (req, res) => {
+  const currentUserId = req.user._id;
+
+  // Fetch favorites and populate post details
+  const favorites = await Favorite.find({ userId: currentUserId })
+    .sort({ createdAt: -1 })
+    .populate({
+      path: 'postId',
+      select: '_id title text topic createdAt updatedAt',
+    });
+
+  // Filter out favorites where postId is null (post deleted)
+  const validFavorites = favorites.filter(fav => fav.postId !== null);
+
+  if (validFavorites.length === 0) {
+    return res.status(200).json({
+      success: true,
+      favorites: [],
+      message: 'You have no favorite posts',
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    favorites: validFavorites,
+  });
+});
+
+

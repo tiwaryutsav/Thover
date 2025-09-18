@@ -102,4 +102,5 @@ router.post("/create-passkey", protect, authController.setMyPasskey);
 router.get("/get-passkey", protect, authController.getMyPasskey);
 router.post("/count-vibes", protect, authController.countVibesInPost);
 router.post("/create-notification", protect, authController.createNotification);
+router.get("/get-favorite", protect, authController.getFavoritePosts);
 export default router;

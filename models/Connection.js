@@ -30,9 +30,14 @@ const connectionSchema = new mongoose.Schema(
       default: true,
     },
     price: {
-      type: String, // You can change this to String if needed
+      type: String,
       required: false,
-    }
+    },
+    // New field
+    isAccepted: {
+      type: Boolean,
+      default: true,
+    },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },
