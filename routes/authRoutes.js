@@ -103,4 +103,8 @@ router.get("/get-passkey", protect, authController.getMyPasskey);
 router.post("/count-vibes", protect, authController.countVibesInPost);
 router.post("/create-notification", protect, authController.createNotification);
 router.get("/get-favorite", protect, authController.getFavoritePosts);
+router.get("/get-notification", protect, authController.getMyNotifications);
+router.get("/get-connectionto-count", protect, authController.getUserConnectionsCount);
+router.get("/get-connectionfrom-count", protect, authController.getUserConnection_fromCount);
+router.post("/add-proff", protect, authController.updateProfession);
 export default router;

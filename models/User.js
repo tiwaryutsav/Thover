@@ -33,10 +33,13 @@ const userSchema = new mongoose.Schema(
 
     // ✅ Passkey object
     passkey: {
-      code: { type: String, default: null },   // 6-digit code
-      time: { type: Date, default: null },     // when it was generated
-      password: { type: String, default: null } // temporary password sent to frontend
-    }
+      code: { type: String, default: null },
+      time: { type: Date, default: null },
+      password: { type: String, default: null }
+    },
+
+    // ✅ Optional profession field
+    profession: { type: String, trim: true, default: '' } 
   },
   { timestamps: true }
 );

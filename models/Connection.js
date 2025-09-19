@@ -19,30 +19,33 @@ const connectionSchema = new mongoose.Schema(
     },
     text: {
       type: String,
-      required: false,
     },
     topic: {
       type: String,
-      required: false,
     },
     isConnected: {
-      type: String,
-      default: true,
+      type: Boolean,
+      default: true, // changed to Boolean
     },
     price: {
-      type: String,
-      required: false,
+      type: Number, // changed to Number
     },
-    // New field
     isAccepted: {
       type: Boolean,
       default: true,
     },
+    lastUpdated: {
+      type: Date,
+      default: Date.now, // for 28-day update tracking
+    },
   },
   {
-    timestamps: { createdAt: true, updatedAt: false },
+    timestamps: { createdAt: true, updatedAt: false }, // keep createdAt only
   }
 );
+
+// Optional: prevent duplicate connections for same post + users
+
 
 export const Connection = mongoose.model('Connection', connectionSchema);
 export default Connection;

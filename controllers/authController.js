@@ -995,26 +995,50 @@ export const createConnection = async (req, res) => {
       });
     }
 
+    // Check if connection already exists
     const existingConnection = await Connection.findOne({
       connectedTo,
       connectedFrom,
       postId,
     });
 
+    const now = new Date();
+
     if (existingConnection) {
-      return res.status(409).json({
-        success: false,
-        message: 'Connection already exists',
-      });
+      const lastUpdated = existingConnection.lastUpdated || existingConnection.createdAt;
+      const diffDays = Math.floor((now - new Date(lastUpdated)) / (1000 * 60 * 60 * 24));
+
+      if (diffDays >= 28) {
+        // Update text, topic, and lastUpdated only
+        existingConnection.text = text || existingConnection.text;
+        existingConnection.topic = topic || existingConnection.topic;
+        existingConnection.lastUpdated = now;
+
+        await existingConnection.save();
+
+        return res.status(200).json({
+          success: true,
+          message: 'Connection updated (after 28 days)',
+          data: existingConnection,
+        });
+      } else {
+        // Reject if within 28 days
+        return res.status(403).json({
+          success: false,
+          message: 'Connection cannot be updated within 28 days',
+        });
+      }
     }
 
+    // If no existing connection, create new one
     const newConnection = await Connection.create({
       connectedTo,
       connectedFrom,
       postId,
       text,
       topic,
-      price, // <-- added here
+      price,
+      lastUpdated: now,
     });
 
     res.status(201).json({
@@ -1030,6 +1054,8 @@ export const createConnection = async (req, res) => {
     });
   }
 };
+
+
 
 
 //To check connection
@@ -1391,7 +1417,7 @@ export const getAllFeedbacks = async (req, res) => {
 
 //Route to update post
 export const updatePost = catchAsync(async (req, res) => {
-  const { postId, userId, description, price } = req.body;
+  const { postId, userId, topic, description, price } = req.body;
 
   // Validate IDs
   if (!mongoose.Types.ObjectId.isValid(postId) || !mongoose.Types.ObjectId.isValid(userId)) {
@@ -1415,6 +1441,7 @@ export const updatePost = catchAsync(async (req, res) => {
   }
 
   // Update allowed fields
+  if (topic) post.topic = topic;
   if (description) post.description = description;
   if (price) post.price = price;
 
@@ -1426,6 +1453,7 @@ export const updatePost = catchAsync(async (req, res) => {
     post,
   });
 });
+
 
 
 export const updatePasswordWithOldPassword = catchAsync(async (req, res) => {
@@ -1938,15 +1966,20 @@ export const searchByUsername = async (req, res) => {
   try {
     const { username } = req.query;
 
-    if (!username || username.length < 3) {
+    if (!username || username.length < 1) {
       return res.status(400).json({
         success: false,
-        message: 'Username query must be at least 3 characters',
+        message: 'Query must be at least 1 character',
       });
     }
 
+    const regex = new RegExp(`^${username}`, 'i');
+
     const users = await User.find({
-      username: { $regex: new RegExp('^' + username, 'i') } // starts with input
+      $or: [
+        { username: { $regex: regex } },
+        { name: { $regex: regex } }
+      ]
     }).select('username name email');
 
     res.status(200).json({
@@ -1961,7 +1994,6 @@ export const searchByUsername = async (req, res) => {
     });
   }
 };
-
 
 
 export const searchByPostTopic = async (req, res) => {
@@ -3490,4 +3522,99 @@ export const getFavoritePosts = catchAsync(async (req, res) => {
   });
 });
 
+export const getMyNotifications = catchAsync(async (req, res) => {
+  const userId = req.user._id; // comes from protect middleware
 
+  const notifications = await Notification.find({ userId: userId })
+    .populate("postId", "title content")
+    .populate("vibeId", "name description")
+    .populate("otherUserId", "name username");
+
+  res.status(200).json({
+    success: true,
+    count: notifications.length,
+    notifications,
+  });
+});
+
+
+export const getUserConnectionsCount = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "userId is required in request body",
+      });
+    }
+
+    // Count how many connections this user has
+    const totalConnections = await Connection.countDocuments({ connectedTo: userId });
+
+    return res.status(200).json({
+      success: true,
+      totalConnections,
+    });
+  } catch (error) {
+    console.error("Error fetching connection count:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching connection count",
+    });
+  }
+};
+
+
+export const getUserConnection_fromCount = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'userId is required in request body',
+      });
+    }
+
+    // Count connections where this user is the sender
+    const totalCount = await Connection.countDocuments({ connectedFrom: userId });
+
+    return res.status(200).json({
+      success: true,
+      count: totalCount,
+    });
+  } catch (error) {
+    console.error('Error counting connections:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while counting connections',
+    });
+  }
+};
+
+
+export const updateProfession = catchAsync(async (req, res) => {
+  const userId = req.user._id; // from auth middleware
+  const { profession } = req.body;
+
+  if (!profession || profession.trim() === '') {
+    return res.status(400).json({
+      success: false,
+      message: 'Profession cannot be empty',
+    });
+  }
+
+  // Update user profession, add the field if it doesn't exist
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    { $set: { profession: profession.trim() } },
+    { new: true, upsert: true } // upsert: create if doesn't exist (rare case)
+  );
+
+  res.status(200).json({
+    success: true,
+    message: 'Profession updated successfully',
+    data: updatedUser,
+  });
+});
